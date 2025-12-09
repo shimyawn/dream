@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>A Midsummer Night's Dream Factory: Loop Fixed</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #f0f8ff; transition: background-color 4s; font-family: 'Courier New', monospace; }
+        canvas { display: block; }
+
+        /* --- 좌측 UI --- */
+        #left-ui {
+            position: absolute; top: 20px; left: 20px;
+            font-family: 'Press Start 2P', cursive;
+            z-index: 10; pointer-events: none;
+            text-shadow: 2px 2px 0px #000;
+            max-width: 450px;
+        }
+        #factory-title {
+            font-size: 22px; margin: 0 0 15px 0; line-height: 1.4;
+            transition: color 2s;
+        }
+        .title-day { color: hotpink; }
+        .title-night { color: #ffffcc; }
+
+        #factory-desc {
+            font-size: 14px;
+            color: #636363; 
+            line-height: 1.6; font-family: 'Courier New', monospace; font-weight: bold;
+            transition: color 2s;
+            text-shadow: none;
+        }
+        #night-disclaimer {
+            display: none;
+            color: #2ecc71; margin-top: 10px; font-size: 0.9em;
+        }
+
+        /* --- 우측 상단 타임 막대 --- */
+        #time-bar-container {
+            position: absolute; top: 30px; right: 250px;
+            width: 150px; height: 10px;
+            background: rgba(0,0,0,0.3); border-radius: 5px;
+            z-index: 10; pointer-events: none;
+        }
+        #time-marker {
+            position: absolute; top: -10px; left: 0%;
+            font-size: 24px; margin-left: -12px;
+            transition: left 0.1s linear;
+        }
+
+        /* --- 우측 가사 스크롤 --- */
+        #lyrics-container {
+            position: absolute; top: 100px; right: 20px;
+            width: 200px; height: 60%;
+            overflow: hidden;
+            z-index: 10; pointer-events: none;
+            text-align: center; 
+            color: #636363; 
+            font-size: 12px; line-height: 1.8;
+            text-shadow: 1px 1px 0px rgba(255,255,255,0.5); 
+            mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+            transition: color 2s, text-shadow 2s; 
+        }
+        #lyrics-content {
+            position: relative;
+            animation: scrollUp 90s linear infinite;
+            top: 100%;
+        }
+        @keyframes scrollUp {
+            0% { top: 100%; }
+            100% { top: -250%; }
+        }
+
+        /* --- Puck's Message --- */
+        #puck-msg-box {
+            position: absolute;
+            display: none; 
+            padding: 10px 15px;
+            background-color: #000;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 5px 5px 0px rgba(0,0,0,0.5);
+            z-index: 100;
+            max-width: 300px;
+            pointer-events: none;
+        }
+        .blink-cursor {
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* --- 엔딩 오버레이 --- */
+        #ending-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; flex-direction: column;
+            justify-content: center; align-items: center;
+            font-family: 'Press Start 2P', cursive;
+            z-index: 999; text-align: center; pointer-events: none;
+        }
+        .end-nightmare { background: rgba(0, 20, 0, 0.95); color: #00ff00; }
+        .end-sweet { background: rgba(255, 192, 203, 0.95); color: #ff1493; }
+        .end-neutral { background: rgba(0, 0, 0, 0.9); color: #fff; }
+        #end-title { font-size: 40px; margin-bottom: 20px; text-shadow: 4px 4px 0 #000; }
+        #end-desc { font-size: 16px; line-height: 1.6; text-shadow: 2px 2px 0 #000; }
+
+    </style>
+</head>
+<body>
+    <div id="left-ui">
+        <h1 id="factory-title" class="title-day">A Midsummer Night's Dream Factory</h1>
+        <div id="factory-desc">
+            VIP customer, hello. We are a premium dream factory.
+            <div id="night-disclaimer">
+                *WARNiNG: Puck intrusion detected.<br>
+                *Oberon & Titania are defending.
+            </div>
+        </div>
+    </div>
+
+    <div id="time-bar-container">
+        <div id="time-marker">🌞</div>
+    </div>
+
+    <div id="puck-msg-box">
+        <span id="puck-text"></span><span class="blink-cursor">_</span>
+    </div>
+
+    <div id="lyrics-container">
+        <div id="lyrics-content">
+            우리는 꿈을 만드는 그림자<br>
+            우리는 꿈을 만드는 그림자<br><br>
+            
+            달이 뜨는 밤이면<br>
+            마음 속으로 들어가<br><br>
+            
+            어떤 하루를 보내셨나요<br>
+            고민 때문에 잠 못 드나요<br>
+            당신을 위한 꿈을 만들어<br>
+            요정들의 세계 여기 꿈나라<br><br>
+            
+            개 꿈, 돼지 꿈<br>
+            길가다가 삐끗해서 똥 밟는 꿈<br>
+            이상한 꿈, 행복한 꿈,<br>
+            어떤 꿈이든 가능해<br><br>
+            
+            달의 그림자, 밤의 방랑자<br>
+            요정들의 세계 여기 꿈나라<br><br>
+            
+            여기는 당신을 위한 꿈나라<br>
+            여기는 당신을 위한 꿈나라<br>
+            달이 뜨는 밤이면<br>
+            마음 속으로 들어가<br><br>
+            
+            당신은 그냥 잠들면 돼요<br>
+            두려워하지 않아도 돼요<br><br>
+            
+            상상만 했던 멋진 일들이<br>
+            여기서는 현실이 될테니까<br><br>
+            <br><br> </div>
+    </div>
+
+    <div id="ending-overlay">
+        <h1 id="end-title"></h1>
+        <p id="end-desc"></p>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const titleElem = document.getElementById('factory-title');
+const factoryDesc = document.getElementById('factory-desc'); 
+const lyricsContainer = document.getElementById('lyrics-container'); 
+const nightDisclaimer = document.getElementById('night-disclaimer');
+const timeMarker = document.getElementById('time-marker');
+const puckBox = document.getElementById('puck-msg-box');
+const puckText = document.getElementById('puck-text');
+const endingOverlay = document.getElementById('ending-overlay');
+const endTitle = document.getElementById('end-title');
+const endDesc = document.getElementById('end-desc');
+
+// --- 유틸리티 ---
+const rand = (min, max) => Math.random() * (max - min) + min;
+const dist = (x1, y1, x2, y2) => Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+
+// --- 설정 ---
+const CONFIG = {
+    dayLength: 2000, 
+    charSize: 12,
+    speed: { walk: 2.0, run: 4.0, belt: 1.0, autoMove: 6.0, fly: 9.0 }, 
+    roles: {
+        mover: 5, janitor: 1, 
+        worker: 8, monitorSup: 1, 
+        decorator: 8, deliverer: 6, 
+        office: 6, ceo: 2, secretary: 1      
+    },
+    colors: {
+        memories: ['#ff9ff3', '#feca57', '#ff6b6b', '#48dbfb', '#1dd1a1', '#5f27cd'], 
+        roof: ['#e74c3c', '#8e44ad', '#2980b9'],
+        nightmare: '#00ff00', sweetDream: '#ff79cd',      
+        belt: '#95a5a6', funnels: '#e17055',
+        decoTable: '#95a5a6',
+        dayBG: '#f0f8ff', nightBG: '#0f0c29'
+    },
+    zones: {},
+    shelfCapacity: 35 
+};
+
+// --- Puck's Messages ---
+const puckMessages = [
+    "Puck's msg: Click on dreams so soft and fair,\nturn them to a green nightmare.",
+    "Puck's msg: 😛 (Bleh!)",
+    "Puck's msg: Is it not a joy to see?\nRuining dreams with wicked glee?",
+    "Puck's msg: I am Puck, the system's bug.\nGiving logic a mischievous tug."
+];
+
+// --- 상태 ---
+let state = {
+    frame: 0,
+    isDay: true,
+    dayTimer: 0,
+    phase: 'PLAYING', // PLAYING, ENDING
+    stats: { nightmare: 0, sweet: 0, neutral: 0 },
+    dominance: 'NEUTRAL',
+    
+    items: [], chars: [], houses: [], particles: [], pedestrians: [], stars: [],
+    pucks: [], 
+    shelfSlots: new Array(CONFIG.shelfCapacity).fill(null),
+    monitor: { activeItem: null, timer: 0 }
+};
+
+// --- Puck Class ---
+class Puck {
+    constructor() {
+        this.x = canvas.width/2; this.y = -50;
+        this.vx = rand(-3,3); this.vy = rand(2,4);
+        this.stunTimer = 0;
+    }
+    update() {
+        if(this.stunTimer > 0) {
+            this.stunTimer--; 
+            this.x += rand(-2,2); 
+            return;
+        }
+        this.x += this.vx; this.y += this.vy;
+        if(this.x < 0 || this.x > canvas.width) this.vx *= -1;
+        if(this.y < 0 || this.y > canvas.height - 100) this.vy *= -1;
+        if(Math.random() < 0.05) { this.vx = rand(-4,4); this.vy = rand(-4,4); }
+
+        state.items.forEach(item => {
+            if(item.qualityType !== 1 && dist(this.x, this.y, item.x, item.y) < 40) {
+                item.qualityType = 1; 
+                createParticle(item.x, item.y, '#00ff00', 3);
+            }
+        });
+    }
+    hit() {
+        this.stunTimer = 120; 
+        createEmote(this.x, this.y-20, '💫');
+        createParticle(this.x, this.y, '#ffff00', 10);
+    }
+    draw() {
+        ctx.save(); ctx.translate(this.x, this.y);
+        if(this.stunTimer > 0) ctx.rotate(rand(-0.5, 0.5));
+        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#00ff00'; ctx.font = "12px serif"; ctx.fillText("😈", -6, 4);
+        let wingY = Math.sin(state.frame * 0.8) * 5;
+        ctx.fillStyle = 'rgba(50,255,50,0.5)';
+        ctx.beginPath(); ctx.ellipse(-10, -5 + wingY, 10, 5, -0.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(10, -5 + wingY, 10, 5, 0.5, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+    }
+}
+
+// --- Item Class ---
+class Item {
+    constructor() {
+        this.id = Math.random().toString(36).substr(2, 9);
+        this.x = 0; this.y = 0;
+        this.baseColor = CONFIG.colors.memories[Math.floor(rand(0, CONFIG.colors.memories.length))];
+        this.ingredients = [this.baseColor]; 
+        this.color = this.baseColor;
+        this.stage = 'RAW'; 
+        this.carrier = null;
+        this.reserved = false; 
+        this.size = 5; 
+        this.shape = 'blob'; 
+        this.qualityType = 0; 
+        this.processedBy = new Set();
+        this.slotIndex = -1;
+        this.isChunk = false; 
+    }
+    initChunk(ingredients) {
+        this.isChunk = true; this.ingredients = ingredients;
+        this.size = 6 + Math.sqrt(ingredients.length) * 2; 
+        this.shape = 'blob'; this.color = ingredients[0]; 
+    }
+    toggleQuality() {
+        if (this.qualityType === 0) { this.qualityType = 1; createEmote(this.x, this.y-20, '!!'); }
+        else if (this.qualityType === 1) { this.qualityType = 2; createEmote(this.x, this.y-20, '❤️'); }
+        else { this.qualityType = 0; }
+    }
+    update() {
+        if (this.carrier) { 
+            this.x = this.carrier.x; 
+            this.y = this.carrier.type === 'deliverer' ? this.carrier.y + 15 : this.carrier.y - 14;
+            return; 
+        }
+        if (this.y > canvas.height + 100) { this.stage = 'DELETED'; }
+        
+        if (this.stage === 'FLYING_TO_FACTORY') {
+            let d = dist(this.x, this.y, this.targetRawX, this.targetRawY);
+            if (d < 5) { this.stage = 'RAW'; this.x = this.targetRawX; this.y = this.targetRawY; } 
+            else { this.x += (this.targetRawX - this.x) * 0.05; this.y += (this.targetRawY - this.y) * 0.05; }
+        }
+        else if (this.stage === 'ON_BELT') {
+            this.x += CONFIG.speed.belt; this.y = CONFIG.zones.belt.y + 15;
+            if (this.x > CONFIG.zones.belt.x + CONFIG.zones.belt.w) {
+                this.stage = 'PENDING_DECO'; 
+                this.x = CONFIG.zones.beltEnd.x + rand(0, 30); this.y = CONFIG.zones.beltEnd.y + rand(0, 30);
+                this.shape = 'polished'; 
+            }
+        }
+        else if (this.stage === 'WAITING_MONITOR') {
+            if (!state.monitor.activeItem) { this.stage = 'MONITORING'; } 
+            else { let qx = CONFIG.zones.monitorQueue.x + CONFIG.zones.monitorQueue.w - 15; if (this.x < qx) this.x += 0.5; }
+        }
+        else if (this.stage === 'MONITORING') {
+            state.monitor.timer++; state.monitor.activeItem = this; 
+            let targetX = CONFIG.zones.monitorPad.x + CONFIG.zones.monitorPad.w/2;
+            let targetY = CONFIG.zones.monitorPad.y + CONFIG.zones.monitorPad.h/2;
+            this.x += (targetX - this.x) * 0.2; this.y += (targetY - this.y) * 0.2;
+            if (state.monitor.timer > 30) { 
+                let emptySlot = state.shelfSlots.findIndex(id => id === null);
+                if (emptySlot !== -1) {
+                    state.shelfSlots[emptySlot] = this.id; this.slotIndex = emptySlot;
+                    this.stage = 'AUTO_MOVE_TO_SHELF';
+                    state.monitor.timer = 0; state.monitor.activeItem = null;
+                }
+            }
+        }
+        else if (this.stage === 'AUTO_MOVE_TO_SHELF') {
+            let row = Math.floor(this.slotIndex / 5); let col = this.slotIndex % 5;
+            let targetX = CONFIG.zones.finish.x + 15 + col * 22;
+            let targetY = CONFIG.zones.finish.y + 15 + row * 28 + 15;
+            let d = dist(this.x, this.y, targetX, targetY);
+            if (d < CONFIG.speed.autoMove + 1) { 
+                this.stage = 'ON_SHELF'; this.x = targetX; this.y = targetY; this.reserved = false; 
+            }
+            else { 
+                this.x += (targetX - this.x)/d * CONFIG.speed.autoMove; 
+                this.y += (targetY - this.y)/d * CONFIG.speed.autoMove; 
+            }
+        }
+        else if (this.stage === 'ON_SHELF') {
+            if (this.slotIndex !== -1) {
+                let row = Math.floor(this.slotIndex / 5); let col = this.slotIndex % 5;
+                this.x = CONFIG.zones.finish.x + 15 + col * 22;
+                this.y = CONFIG.zones.finish.y + 15 + row * 28 + 15;
+            }
+        }
+    }
+    draw() {
+        ctx.save(); ctx.translate(this.x, this.y);
+        
+        if (this.qualityType === 1) { ctx.shadowColor = '#00ff00'; ctx.shadowBlur = 15; ctx.fillStyle = 'rgba(0, 255, 0, 0.4)'; ctx.beginPath(); ctx.arc(0,0, this.size+6, 0, Math.PI*2); ctx.fill(); }
+        else if (this.qualityType === 2) { ctx.shadowColor = '#ff69b4'; ctx.shadowBlur = 15; ctx.fillStyle = 'rgba(255, 105, 180, 0.4)'; ctx.beginPath(); ctx.arc(0,0, this.size+6, 0, Math.PI*2); ctx.fill(); }
+
+        if (['PACKED', 'WAITING_MONITOR', 'MONITORING', 'AUTO_MOVE_TO_SHELF', 'ON_SHELF', 'DELIVERING'].includes(this.stage) || (this.carrier && this.stage === 'PACKED')) {
+            ctx.fillStyle = this.ingredients[0]; ctx.fillRect(-6, -6, 12, 12);
+            ctx.fillStyle = '#fff'; ctx.fillRect(-2, -6, 4, 12); ctx.fillRect(-6, -2, 12, 4);
+            ctx.strokeStyle = '#fff'; ctx.lineWidth=1; ctx.strokeRect(-6,-6,12,12);
+            ctx.restore(); return;
+        }
+        if (this.stage === 'DELETED') { ctx.restore(); return; }
+        if (this.isChunk) {
+            let radius = this.size * (this.carrier ? 0.8 : 1);
+            ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI*2); 
+            if(this.ingredients.length > 1) {
+                let grad = ctx.createLinearGradient(-radius, -radius, radius, radius);
+                this.ingredients.forEach((c, i) => grad.addColorStop(i/(this.ingredients.length-1), c));
+                ctx.fillStyle = grad;
+            } else { ctx.fillStyle = this.ingredients[0]; }
+            ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.4)'; for(let i=0; i<3; i++) ctx.fillRect(rand(-3,3), rand(-3,3), 2, 2);
+        } else {
+            ctx.beginPath(); ctx.arc(0, 0, this.size, 0, Math.PI*2); ctx.fillStyle = this.color; ctx.fill();
+        }
+        ctx.restore();
+    }
+}
+
+// --- Character Class ---
+class Character {
+    constructor(type, id) {
+        this.type = type; this.id = id;
+        this.x = 0; this.y = 0;
+        this.target = null; this.state = 'IDLE'; 
+        this.timer = 0; this.jumpY = 0; this.jumpV = 0;
+        this.backpack = []; 
+        this.init();
+    }
+    
+    init() {
+        if(this.type==='worker') {
+            let spacing = CONFIG.zones.belt.w / CONFIG.roles.worker;
+            this.fixedPos = { x: CONFIG.zones.belt.x + spacing/2 + this.id*spacing, y: CONFIG.zones.belt.y + 45 };
+        } else if(this.type==='office') {
+            this.fixedPos = { x: CONFIG.zones.office.x + 30 + (this.id%3)*60, y: CONFIG.zones.office.y + 40 + Math.floor(this.id/3)*50 };
+        } else if(this.type==='monitorSup') {
+            this.fixedPos = { x: CONFIG.zones.monitor.x + 120, y: CONFIG.zones.monitor.y + 80 }; 
+        }
+        
+        if(this.fixedPos) { this.x=this.fixedPos.x; this.y=this.fixedPos.y; }
+        else { this.x = CONFIG.zones.raw.x; this.y = CONFIG.zones.raw.y; } 
+        
+        if(this.type==='deliverer') {
+            this.x = canvas.width + 100 + rand(0,100); 
+            this.y = rand(100, 300);
+        }
+    }
+
+    reset() {
+        this.target = null; this.state = 'IDLE'; this.timer = 0; this.backpack = [];
+        this.jumpY = 0; this.jumpV = 0;
+    }
+
+    jump() { if(this.jumpY === 0) this.jumpV = -6; }
+    
+    update() {
+        if(state.phase === 'ENDING') {
+            if(state.dominance === 'SWEET') {
+                 if (Math.random() < 0.05) this.jump();
+            }
+            if (this.jumpV !== 0 || this.jumpY !== 0) {
+                this.jumpY += this.jumpV; this.jumpV += 0.5; if(this.jumpY >= 0) { this.jumpY = 0; this.jumpV = 0; }
+            }
+            return;
+        }
+
+        let speedMult = 1.0;
+        if (!state.isDay) {
+            if (state.dominance === 'NIGHTMARE') {
+                speedMult = 0.5; 
+                if(Math.random()<0.05) { this.x += rand(-2,2); return; } 
+            } else if (state.dominance === 'SWEET') {
+                speedMult = 1.5; 
+                if(Math.random()<0.01) createEmote(this.x, this.y-25, '🎵');
+            }
+        }
+
+        if(this.type !== 'deliverer' && (this.jumpV !== 0 || this.jumpY !== 0)) {
+            this.jumpY += this.jumpV; this.jumpV += 0.5; if(this.jumpY >= 0) { this.jumpY = 0; this.jumpV = 0; }
+        }
+
+        if(this.fixedPos) {
+            this.x = this.fixedPos.x; this.y = this.fixedPos.y;
+            if(this.type==='worker') this.beltWork(); 
+            if(this.type==='monitorSup') this.monitorWork();
+            return;
+        }
+
+        if (this.type === 'deliverer') {
+            this.delivererLogic(speedMult);
+            return;
+        }
+
+        if(['ceo','secretary'].includes(this.type)) { this.patrolLogic(speedMult); return; }
+        this.moveLogic(speedMult);
+    }
+    
+    delivererLogic(speedMult) {
+        if (state.isDay) {
+            if (this.x < canvas.width + 150) { this.x += 8; }
+            this.target = null; this.state = 'IDLE';
+            return;
+        }
+        let speed = CONFIG.speed.fly * speedMult;
+        if (this.state === 'IDLE' || this.state === 'RETURN' || this.state === 'WAITING') {
+            let job = state.items.find(i => i.stage === 'ON_SHELF' && !i.carrier && !i.reserved);
+            if (job) {
+                this.target = job; this.target.reserved = true; 
+                this.state = 'PICKUP';
+                this.destHouse = state.houses[Math.floor(Math.random() * state.houses.length)];
+            }
+        }
+        if (this.state === 'PICKUP') {
+            if (!this.target) { this.state = 'IDLE'; return; }
+            let dx = this.target.x - this.x; let dy = this.target.y - this.y; let d = Math.sqrt(dx*dx + dy*dy);
+            if (d < 5) {
+                if (this.target.slotIndex !== -1) {
+                    state.shelfSlots[this.target.slotIndex] = null; 
+                    this.target.slotIndex = -1; this.target.carrier = this;
+                    this.target.stage = 'DELIVERING'; this.state = 'DELIVER';
+                } else { this.state = 'IDLE'; }
+            } else { this.x += (dx/d) * speed; this.y += (dy/d) * speed; }
+        }
+        else if (this.state === 'DELIVER') {
+            if (!this.destHouse) { this.state = 'IDLE'; return; }
+            let tx = this.destHouse.win.x + 15; let ty = this.destHouse.win.y; let d = dist(this.x, this.y, tx, ty);
+            if (d < 5) {
+                if (this.target) {
+                    this.destHouse.receiveItem(this.target);
+                    this.target.carrier = null;
+                    state.items = state.items.filter(i => i !== this.target);
+                    this.target = null;
+                    createParticle(this.x, this.y, '#f1c40f', 8);
+                }
+                this.state = 'RETURN';
+            } else { this.x += (tx - this.x)/d * speed; this.y += (ty - this.y)/d * speed; }
+        }
+        else {
+            let waitX = CONFIG.zones.finish.x + CONFIG.zones.finish.w + 40 + (this.id % 2) * 30;
+            let waitY = CONFIG.zones.finish.y + 20 + (this.id * 25);
+            let d = dist(this.x, this.y, waitX, waitY);
+            if (d > 5) { this.x += (waitX - this.x)/d * speed; this.y += (waitY - this.y)/d * speed; this.state = 'RETURN'; } 
+            else { this.state = 'IDLE'; this.y += Math.sin(state.frame * 0.1 + this.id) * 0.5; }
+        }
+    }
+
+    beltWork() {
+        let item = state.items.find(i => i.stage==='ON_BELT' && Math.abs(i.x-this.x)<20 && !i.processedBy.has(this.id));
+        if(item) {
+            item.processedBy.add(this.id);
+            if (this.id < 3) item.shape = 'blob'; 
+            else if (this.id < 6) item.shape = Math.random()<0.5 ? 'square' : 'circle'; 
+            else item.shape = 'star'; 
+            createParticle(item.x, item.y, item.ingredients[0], 2);
+            this.jump();
+        }
+    }
+
+    monitorWork() {
+        let activeItem = state.monitor.activeItem;
+        if (activeItem && state.frame % 30 === 0) {
+            if (activeItem.qualityType === 1) { createEmote(this.x, this.y - 20, '!!'); this.jump(); } 
+            else if (activeItem.qualityType === 2) { createEmote(this.x, this.y - 20, '❤️'); }
+        }
+    }
+
+    patrolLogic(speedMult) {
+        let speed = CONFIG.speed.walk * speedMult;
+        if (this.type === 'secretary') {
+            speed = CONFIG.speed.run * 2.5 * speedMult; 
+            if (this.state === 'PATROL' || this.state === 'PICKUP') {
+                 this.jumpY = Math.abs(Math.sin(state.frame * 0.4)) * -6; 
+            } else {
+                this.jumpY = 0;
+            }
+            state.items.forEach(item => {
+                if (['PENDING_DECO', 'PACKED', 'WAITING_MONITOR', 'MONITORING', 'AUTO_MOVE_TO_SHELF', 'ON_SHELF'].includes(item.stage)) {
+                    if (dist(this.x, this.y, item.x, item.y) < 20 && Math.random() < 0.1) {
+                         item.toggleQuality();
+                    }
+                }
+            });
+        }
+        
+        if (this.type === 'ceo') {
+            if (this.id === 1) { 
+                if (Math.random() < 0.03) {
+                     const flowers = ['🌸', '🌺', '🌼', '🌷', '🌹', '🌻'];
+                     createEmote(this.x, this.y - 20, flowers[Math.floor(Math.random() * flowers.length)]);
+                }
+                state.items.forEach(i => {
+                    if(i.qualityType === 1 && dist(this.x, this.y, i.x, i.y) < 100 && Math.random() < 0.1) {
+                        i.qualityType = 2; 
+                        createParticle(this.x, this.y, '#ff69b4', 5);
+                        createEmote(i.x, i.y-20, '✨');
+                    }
+                });
+            } else { 
+                state.pucks.forEach(p => {
+                    if(p.stunTimer === 0 && dist(this.x, this.y, p.x, p.y) < 60) {
+                        p.hit();
+                        createEmote(this.x, this.y-30, '⚔️');
+                    }
+                });
+            }
+        }
+
+        if(this.state === 'IDLE') {
+            let spots;
+            if (this.type === 'ceo' && this.id === 1) {
+                spots = [
+                      {x: CONFIG.zones.office.x + CONFIG.zones.office.w/2, y: CONFIG.zones.office.y + 60}, 
+                      {x: CONFIG.zones.ceo.x + 30, y: CONFIG.zones.ceo.y + 40}
+                ];
+            } else {
+                spots = [
+                    {x: CONFIG.zones.monitor.x + 40, y: CONFIG.zones.monitor.y + 80},
+                    {x: CONFIG.zones.funnel.x, y: CONFIG.zones.funnel.y + 50},
+                    {x: CONFIG.zones.finish.x + 50, y: CONFIG.zones.finish.y + 100},
+                    {x: CONFIG.zones.ceo.x + 30, y: CONFIG.zones.ceo.y + 40}
+                ];
+            }
+            let dest = spots[Math.floor(Math.random()*spots.length)];
+            this.target = dest; this.state = 'PATROL';
+        } 
+        else if (this.state === 'PATROL') {
+            this.moveTo(this.target.x, this.target.y, speed, () => {
+                this.state = 'WATCHING'; this.timer = 0;
+            });
+        }
+        else if (this.state === 'WATCHING') {
+            this.timer++; if (this.timer > 150) this.state = 'IDLE'; 
+        }
+    }
+
+    moveLogic(speedMult) {
+        let speed = CONFIG.speed.walk * speedMult;
+        if(this.type === 'decorator') speed = CONFIG.speed.run * speedMult;
+        if(this.type === 'mover' || this.type === 'janitor') speed = CONFIG.speed.run * speedMult; 
+
+        if(this.state==='IDLE' || this.state==='WAITING' || this.state==='MEETING') {
+            this.findJob();
+            if(this.state==='IDLE' && Math.random()<0.02) this.x += rand(-2, 2);
+            
+            if (this.type === 'decorator' && this.state === 'IDLE' && !this.target) {
+                let waitX = CONFIG.zones.decoTable.x + CONFIG.zones.decoTable.w + 20;
+                let waitY = CONFIG.zones.decoTable.y + 20 + (this.id * 15); 
+                let d = dist(this.x, this.y, waitX, waitY);
+                if (d > 5) { this.moveTo(waitX, waitY, speed, () => { this.state = 'WAITING'; }); } 
+                else { this.state = 'WAITING'; }
+            }
+            if (this.state === 'WAITING' && Math.random() < 0.02) {
+                const talks = ['🎀', '✨', '🎨', '🤔', '💎', '🌈', '💝'];
+                createEmote(this.x, this.y - 15, talks[Math.floor(Math.random()*talks.length)]);
+            }
+            return;
+        }
+
+        if (this.type === 'janitor') { 
+            if (this.state === 'PICKUP') {
+                if(!this.target || !state.items.includes(this.target)) { this.state = 'IDLE'; return; }
+                this.moveTo(this.target.x, this.target.y, speed, () => {
+                   if(state.items.includes(this.target)) {
+                       this.target.carrier = this; this.state = 'TO_TRASH';
+                   } else { this.state = 'IDLE'; }
+                });
+            } else if (this.state === 'TO_TRASH') {
+                let tZone = CONFIG.zones.trash;
+                this.moveTo(tZone.x + tZone.w/2, tZone.y + tZone.h/2, speed, () => {
+                    if (this.target) {
+                        createParticle(this.x, this.y, '#555', 8); 
+                        state.items = state.items.filter(i => i !== this.target);
+                        this.target = null;
+                    }
+                    this.state = 'IDLE';
+                });
+            }
+            return;
+        }
+
+        if (this.type === 'mover') {
+            if (this.state === 'GATHER') {
+                if (!this.target || !state.items.includes(this.target)) { this.state = 'IDLE'; return; }
+                this.moveTo(this.target.x, this.target.y, speed, () => {
+                    if (state.items.includes(this.target)) {
+                        this.backpack.push(this.target.color);
+                        state.items = state.items.filter(i => i !== this.target);
+                    }
+                    this.target = null;
+                    if (this.backpack.length < 4) {
+                        let nextItem = this.findRawItem();
+                        if (nextItem) { this.target = nextItem; } 
+                        else { this.state = 'TO_FUNNEL'; }
+                    } else { this.state = 'TO_FUNNEL'; }
+                });
+            } else if (this.state === 'TO_FUNNEL') {
+                let funnelTop = {x: CONFIG.zones.funnel.x + CONFIG.zones.funnel.w/2, y: CONFIG.zones.funnel.y};
+                this.moveTo(funnelTop.x, funnelTop.y, speed, () => {
+                    if (this.backpack.length > 0) {
+                        let chunk = new Item();
+                        chunk.initChunk([...this.backpack]);
+                        chunk.x = funnelTop.x; chunk.y = funnelTop.y + 20; chunk.stage = 'ON_BELT';
+                        state.items.push(chunk);
+                        this.backpack = [];
+                    }
+                    this.state = 'RETURN';
+                });
+            } else if (this.state === 'RETURN') {
+                let base = CONFIG.zones.raw;
+                this.moveTo(base.x + rand(10, base.w-10), base.y + rand(10, base.h-10), speed, () => { this.state = 'IDLE'; });
+            }
+            return; 
+        }
+
+        if (this.type === 'decorator') {
+            if(this.state==='PICKUP') {
+                if(!this.target) { this.state='IDLE'; return; }
+                this.moveTo(this.target.x, this.target.y, speed, ()=>{
+                    if(this.target) {
+                        this.target.carrier = this; this.target.stage = 'ON_TABLE';
+                        this.state = 'TO_TABLE';
+                    } else this.state = 'IDLE';
+                });
+            } else if(this.state==='TO_TABLE') {
+                let tx = CONFIG.zones.decoTable.x + 10 + (this.id % 4)*20;
+                let ty = CONFIG.zones.decoTable.y + 10 + Math.floor(this.id/4)*40;
+                this.moveTo(tx, ty, speed, ()=>{ this.state='DECORATING'; this.timer = 0; });
+            } else if(this.state==='DECORATING') {
+                this.timer++;
+                if(this.timer > 30) { 
+                    if(this.target) { this.target.stage = 'PACKED'; createParticle(this.x, this.y - 15, '#fff', 5); }
+                    this.state = 'TO_QUEUE'; 
+                }
+            } else if(this.state==='TO_QUEUE') {
+                let queueZone = CONFIG.zones.monitorQueue;
+                let qx = queueZone.x + rand(5, queueZone.w-10);
+                let qy = queueZone.y + rand(5, queueZone.h-5);
+                this.moveTo(qx, qy, speed, ()=>{
+                    if(this.target) { 
+                        this.target.carrier = null; this.target.stage = 'WAITING_MONITOR'; 
+                        this.target.x = qx; this.target.y = qy; this.target = null; 
+                    }
+                    this.state = 'RETURN'; 
+                });
+            } else if(this.state==='RETURN') {
+                let base = CONFIG.zones.decoTable;
+                this.moveTo(base.x + base.w/2, base.y + base.h + 10, speed, ()=>{ this.state='WAITING'; });
+            }
+            return;
+        }
+    }
+
+    findRawItem() {
+        let items = state.items.filter(i => 
+            i.stage==='RAW' && !i.carrier && !i.isChunk && !i.reserved &&
+            i.baseColor !== '#1dd1a1' && i.qualityType !== 1
+        );
+        if (items.length === 0) return null;
+        items.sort((a,b) => dist(this.x, this.y, a.x, a.y) - dist(this.x, this.y, b.x, b.y));
+        let chosen = items[0]; chosen.reserved = true; return chosen;
+    }
+
+    findJob() {
+        if (this.type === 'janitor') {
+            let trashItem = state.items.find(i => 
+                i.stage === 'RAW' && !i.carrier && !i.reserved &&
+                (i.baseColor === '#1dd1a1' || i.qualityType === 1)
+            );
+            if (trashItem) { this.target = trashItem; this.target.reserved = true; this.state = 'PICKUP'; }
+            return;
+        }
+
+        if(this.type==='mover') {
+            if (this.backpack.length > 0) {
+                if(this.backpack.length < 4) {
+                   let next = this.findRawItem();
+                   if(next) { this.target = next; this.state='GATHER'; }
+                   else { this.state = 'TO_FUNNEL'; } 
+                } else { this.state = 'TO_FUNNEL'; }
+                return;
+            } 
+            this.target = this.findRawItem();
+            if (this.target) this.state = 'GATHER';
+        }
+        else if(this.type==='decorator') {
+            this.target = state.items.find(i=>i.stage==='PENDING_DECO' && !i.carrier && !i.reserved);
+            if(this.target) { this.target.reserved = true; this.state='PICKUP'; }
+        }
+    }
+
+    moveTo(tx,ty,spd,onDone) {
+        let d=dist(this.x,this.y,tx,ty);
+        if(d<5){ if(onDone) onDone(); } else { this.x+=(tx-this.x)/d*spd; this.y+=(ty-this.y)/d*spd; }
+    }
+
+    draw() {
+        let s=CONFIG.charSize, yOff=this.jumpY;
+        let color = '#7f8c8d'; 
+        if(this.type === 'worker') color = '#e84393'; 
+        if(this.type === 'mover') color = '#e67e22';
+        if(this.type === 'office') color = '#0984e3';
+        if(this.type === 'ceo') {
+             color = (this.id === 1) ? '#ffffff' : '#2d3436'; 
+        }
+        if(this.type === 'secretary') color = '#00b894';
+        if(this.type === 'decorator') color = '#8e44ad';
+        if(this.type === 'janitor') color = '#2c3e50'; 
+        if(this.type === 'deliverer') color = '#f1c40f';
+
+        ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(this.x, this.y + (this.type==='deliverer'?15:0), s/2, s/4, 0, 0, Math.PI*2); ctx.fill();
+
+        ctx.fillStyle=color; ctx.fillRect(this.x-s/2,this.y-s/2+yOff,s,s*1.3); 
+        ctx.fillStyle='#ffeaa7'; ctx.beginPath(); ctx.arc(this.x,this.y-s/2+yOff,s/2,0,Math.PI*2); ctx.fill(); 
+        
+        if(this.type === 'janitor') { ctx.fillStyle = '#555'; ctx.fillRect(this.x-s/2, this.y-s/2+yOff-3, s, 3); }
+
+        if(this.type === 'deliverer') {
+            ctx.fillStyle = '#333'; ctx.fillRect(this.x-4, this.y-s/2-2, 8, 3); 
+            ctx.fillStyle = '#bdc3c7'; ctx.fillRect(this.x-s/2-2, this.y-s/2+yOff+2, 2, 8);
+            if (!state.isDay) {
+                ctx.fillStyle = Math.random()>0.5 ? '#e67e22' : '#f1c40f';
+                ctx.beginPath(); ctx.moveTo(this.x-s/2, this.y+yOff+8); ctx.lineTo(this.x-s/2-4, this.y+yOff+16 + rand(0,4)); ctx.lineTo(this.x-s/2+2, this.y+yOff+8); ctx.fill();
+                if ((this.state === 'IDLE' || this.state === 'RETURN') && state.frame % 20 < 10) {
+                     ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(this.x, this.y - 15, 4, 0, Math.PI*2); ctx.stroke();
+                }
+            }
+        }
+
+        if(this.type === 'office') {
+            ctx.fillStyle = '#b2bec3'; ctx.fillRect(this.x - 10, this.y + 5, 20, 10);
+            ctx.fillStyle = '#2d3436'; ctx.fillRect(this.x - 5, this.y - 2, 10, 8);
+            let item = state.monitor.activeItem;
+            if (!item) { ctx.fillStyle = '#000'; ctx.fillRect(this.x - 4, this.y - 1, 8, 6); } 
+            else {
+                let baseColor = item.ingredients[0] || item.color; 
+                ctx.fillStyle = baseColor; ctx.fillRect(this.x - 4, this.y - 1, 8, 6);
+                if(Math.floor(state.frame/5)%2===0) { ctx.fillStyle = '#fff'; ctx.fillRect(this.x - 4, this.y - 1, 8, 6); }
+            }
+        }
+
+        if(this.type === 'ceo') { 
+            ctx.fillStyle = '#c0392b'; ctx.fillRect(this.x-s/2-2, this.y-s/2+yOff, 2, s*1.3);
+            ctx.strokeStyle = '#f1c40f'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(this.x+s, this.y+yOff); ctx.lineTo(this.x+s, this.y+s+yOff); ctx.stroke();
+        }
+        if(this.type === 'secretary') { ctx.fillStyle = '#333'; ctx.fillRect(this.x-3, this.y-s/2+yOff-2, 6, 2); }
+        
+        if(this.type === 'mover' && this.backpack.length > 0) {
+            this.backpack.forEach((c, i) => {
+                ctx.fillStyle = c; ctx.beginPath(); ctx.arc(this.x, this.y-s-5-(i*4)+yOff, 4, 0, Math.PI*2); ctx.fill();
+            });
+        }
+    }
+}
+
+class House {
+    constructor(x,w,h) {
+        this.x=x; this.w=w; this.h=h; this.y=canvas.height-h; 
+        this.roof=CONFIG.colors.roof[Math.floor(rand(0,3))];
+        this.win={x:x+w/2-15, y:this.y+30, on:false, color:'#fff', timer:0, type:0};
+    }
+    receiveItem(item) {
+        this.win.on=true; this.win.timer=300; this.win.type = item.qualityType;
+        if (item.qualityType === 1) { this.win.color = CONFIG.colors.nightmare; createEmote(this.win.x+15, this.win.y-20, '!!'); }
+        else if (item.qualityType === 2) { this.win.color = CONFIG.colors.sweetDream; createEmote(this.win.x+15, this.win.y-20, '❤️'); }
+        else { this.win.color = item.ingredients[0]; }
+    }
+    draw(){
+        ctx.fillStyle = state.isDay ? '#2c3e50' : '#1a252f'; 
+        ctx.fillRect(this.x+5,this.y,this.w-10,this.h);
+        ctx.fillStyle=this.roof; ctx.beginPath(); ctx.moveTo(this.x,this.y); ctx.lineTo(this.x+this.w/2,this.y-20); ctx.lineTo(this.x+this.w,this.y); ctx.fill();
+        
+        if (!state.isDay) {
+            ctx.fillStyle = '#2c3e50'; ctx.fillRect(this.win.x, this.win.y, 30, 30);
+            ctx.fillStyle = '#8e44ad'; ctx.fillRect(this.win.x+2, this.win.y+15, 26, 12);
+            ctx.fillStyle = '#fff'; ctx.fillRect(this.win.x+3, this.win.y+12, 8, 6);
+            ctx.fillStyle = '#ffccaa'; ctx.beginPath(); ctx.arc(this.win.x+7, this.win.y+15, 3.5, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#3498db'; ctx.fillRect(this.win.x+2, this.win.y+18, 26, 9);
+            if (Math.floor(state.frame/60)%2 === 0) {
+                 ctx.fillStyle = '#fff'; ctx.font = "8px sans-serif"; ctx.fillText("z", this.win.x+15, this.win.y+10);
+            }
+        }
+        if(this.win.timer>0) this.win.timer--; else this.win.on=false;
+        
+        let winColor = state.isDay ? '#87ceeb' : (this.win.on ? this.win.color : 'rgba(0,0,0,0.3)');
+        if (state.isDay) { ctx.fillStyle = winColor; ctx.fillRect(this.win.x,this.win.y,30,30); } 
+        else if (this.win.on) {
+             ctx.globalAlpha = 0.6; ctx.fillStyle = winColor; ctx.fillRect(this.win.x,this.win.y,30,30);
+             ctx.shadowColor=this.win.color; ctx.shadowBlur=20; ctx.fillRect(this.win.x,this.win.y,30,30); ctx.shadowBlur=0; ctx.globalAlpha = 1.0;
+        }
+    }
+}
+
+class Pedestrian {
+    constructor() {
+        this.x = rand(0, canvas.width);
+        this.y = canvas.height - 40 + rand(-10, 10);
+        this.dir = Math.random() < 0.5 ? 1 : -1;
+        this.color = `hsl(${rand(0, 360)}, 70%, 50%)`;
+        this.memoryTimer = rand(20, 60); 
+    }
+    update() {
+        if(!state.isDay) return;
+        this.x += this.dir * 0.5;
+        if(this.x < -20) this.x = canvas.width+20; if(this.x > canvas.width+20) this.x = -20;
+        this.memoryTimer--;
+        if (this.memoryTimer <= 0) { this.spawnMemory(); this.memoryTimer = rand(10, 50); }
+    }
+    spawnMemory() {
+        let item = new Item();
+        item.x = this.x; item.y = this.y - 20;
+        item.targetRawX = CONFIG.zones.raw.x + rand(10, CONFIG.zones.raw.w - 10);
+        item.targetRawY = CONFIG.zones.raw.y + rand(10, CONFIG.zones.raw.h - 10);
+        item.stage = 'FLYING_TO_FACTORY';
+        state.items.push(item);
+    }
+    draw() {
+        if(!state.isDay) return;
+        ctx.fillStyle = this.color; ctx.fillRect(this.x-5, this.y-15, 10, 15);
+        ctx.fillStyle = '#ffeaa7'; ctx.beginPath(); ctx.arc(this.x, this.y-20, 5, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#333'; ctx.fillRect(this.x-4, this.y, 3, 8); ctx.fillRect(this.x+1, this.y, 3, 8);
+    }
+}
+
+let cy; 
+function init() {
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    cy = canvas.height*0.45;
+    
+    CONFIG.zones = {
+        office:{x:canvas.width/2-200,y:30,w:250,h:100}, 
+        ceo:{x:canvas.width/2+80,y:30,w:100,h:80},
+        raw:{x:50,y:cy,w:120,h:120}, 
+        trash:{x:60, y:cy+140, w:60, h:50}, 
+        funnel:{x:200, y:cy-40, w:50, h:60}, 
+        belt:{x:220,y:cy+20,w:420,h:40}, 
+        beltEnd:{x:650,y:cy+20,w:40,h:50}, 
+        decoTable:{x:700,y:cy-20,w:100,h:100}, 
+        monitorQueue:{x:800, y:cy-30, w:30, h:100}, 
+        monitor:{x:840, y:cy-80, w:100, h:70}, 
+        monitorPad:{x:840, y:cy+20, w:100, h:40}, 
+        finish:{x:980,y:cy-50,w:140,h:240}, 
+    };
+    
+    state.houses = Array.from({length:8},(_,i)=>new House(50+i*(canvas.width/9),canvas.width/10,rand(80,120)));
+    state.pedestrians = Array.from({length:10}, ()=>new Pedestrian());
+    state.stars = [];
+    for(let i=0; i<100; i++) state.stars.push({x:rand(0,canvas.width), y:rand(0,canvas.height/2), size:rand(0.5,2)});
+    state.chars = [];
+    for(let r in CONFIG.roles) for(let i=0;i<CONFIG.roles[r];i++) state.chars.push(new Character(r,i));
+}
+
+// [리셋 로직] - 낮으로 완벽 복귀
+function resetGameToDay() {
+    state.isDay = true;
+    state.dayTimer = 0;
+    state.phase = 'PLAYING';
+    state.items = []; // 꿈 제거
+    state.pucks = []; // 퍽 제거
+    state.particles = [];
+    state.shelfSlots.fill(null); // 선반 초기화
+    state.monitor.activeItem = null;
+    state.monitor.timer = 0;
+    state.stats = { nightmare: 0, sweet: 0, neutral: 0 };
+    state.dominance = 'NEUTRAL';
+
+    // 캐릭터 위치/상태 초기화
+    state.chars.forEach(c => {
+        c.reset(); 
+        c.init();  
+    });
+
+    // UI/배경 초기화
+    titleElem.className = 'title-day';
+    factoryDesc.style.color = '#636363';
+    lyricsContainer.style.color = '#636363';
+    nightDisclaimer.style.display = 'none';
+    timeMarker.innerText = '🌞';
+    endingOverlay.style.display = 'none';
+
+    console.log("🌞 Day Reset Complete.");
+}
+
+function createParticle(x,y,c,n){
+    for(let i=0;i<n;i++) state.particles.push({x,y,c,vx:(Math.random()-0.5)*3,vy:(Math.random()-0.5)*3,life:30, type:'normal'});
+}
+function createEmote(x,y,text){
+    state.particles.push({x,y,c: text==='!!'?'#00ff00':'#ff007f', vx:0,vy:-0.5,life:60, type:'emote', text: text});
+}
+
+function showPuckMessage() {
+    let msg = puckMessages[Math.floor(Math.random() * puckMessages.length)];
+    puckText.innerText = msg;
+    
+    let px = rand(100, canvas.width - 350);
+    let py = rand(100, canvas.height - 200);
+    
+    puckBox.style.left = px + 'px';
+    puckBox.style.top = py + 'px';
+    puckBox.style.display = 'block';
+
+    setTimeout(() => {
+        puckBox.style.display = 'none';
+    }, 5000);
+}
+
+function drawPieChart() {
+    let radius = 20;
+    let cx = canvas.width - 250; 
+    let cy = 60; 
+    
+    let total = state.stats.nightmare + state.stats.sweet + state.stats.neutral;
+    if(total === 0) total = 1;
+
+    let angles = {
+        n: (state.stats.nightmare / total) * Math.PI * 2,
+        s: (state.stats.sweet / total) * Math.PI * 2,
+        net: (state.stats.neutral / total) * Math.PI * 2
+    };
+
+    ctx.save(); ctx.translate(cx, cy);
+    if (!state.isDay) {
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = state.dominance === 'NIGHTMARE' ? '#00ff00' : (state.dominance === 'SWEET' ? '#ff69b4' : '#fff');
+    }
+    let current = -Math.PI/2;
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0, radius, current, current + angles.net); ctx.fillStyle = '#bdc3c7'; ctx.fill();
+    current += angles.net;
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0, radius, current, current + angles.n); ctx.fillStyle = '#00ff00'; ctx.fill();
+    current += angles.n;
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0, radius, current, current + angles.s); ctx.fillStyle = '#ff69b4'; ctx.fill();
+    
+    ctx.beginPath(); ctx.arc(0,0, radius, 0, Math.PI*2); ctx.strokeStyle = '#fff'; ctx.lineWidth=2; ctx.stroke();
+    ctx.restore();
+}
+
+function updateStats() {
+    let n=0, s=0, neu=0;
+    state.items.forEach(i => { if(i.qualityType===1) n++; else if(i.qualityType===2) s++; else neu++; });
+    state.stats = {nightmare:n, sweet:s, neutral:neu};
+    
+    if(n > s && n > neu) state.dominance = 'NIGHTMARE';
+    else if(s > n && s > neu) state.dominance = 'SWEET';
+    else state.dominance = 'NEUTRAL';
+}
+
+function drawMonitorScreen() {
+    let zone = CONFIG.zones.monitor;
+    let item = state.monitor.activeItem;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(zone.x+5, zone.y+5, zone.w-10, zone.h-10); ctx.clip();
+    if (!item) {
+        ctx.fillStyle = '#000'; ctx.fillRect(zone.x, zone.y, zone.w, zone.h);
+        ctx.fillStyle = 'rgba(0,255,0,0.1)'; 
+        if(Math.random()<0.3) ctx.fillRect(zone.x, zone.y+rand(0, zone.h), zone.w, 2);
+    } 
+    else {
+        let baseColor = item.ingredients[0] || item.color; 
+        let grad = ctx.createLinearGradient(zone.x, zone.y, zone.x, zone.y + zone.h);
+        let offset = Math.sin(state.frame * 0.05) * 0.5 + 0.5; 
+        grad.addColorStop(0, baseColor); grad.addColorStop(offset, '#ffffff'); grad.addColorStop(1, baseColor);
+        ctx.fillStyle = grad; ctx.fillRect(zone.x, zone.y, zone.w, zone.h);
+        ctx.fillStyle = '#fff'; ctx.font = '10px Courier New'; ctx.fillText("ANALYZING...", zone.x + 10, zone.y + zone.h - 10);
+    }
+    ctx.restore();
+}
+
+function drawBG() {
+    let bgColor = state.isDay ? CONFIG.colors.dayBG : CONFIG.colors.nightBG;
+    
+    if(!state.isDay) {
+        if(state.dominance === 'NIGHTMARE') {
+            bgColor = '#0a1a0a'; 
+            if(Math.random() < 0.1) ctx.translate(rand(-3,3), rand(-3,3)); 
+        } else if (state.dominance === 'SWEET') {
+            bgColor = '#1a0515'; 
+            if(Math.random() < 0.2) createParticle(rand(0,canvas.width), rand(0,canvas.height), '#ffd700', 1); 
+        }
+    }
+    
+    ctx.fillStyle = bgColor; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.setTransform(1,0,0,1,0,0);
+
+    if (!state.isDay) {
+        ctx.fillStyle = '#fff';
+        state.stars.forEach(s => {
+            if(Math.random()<0.95) ctx.globalAlpha = rand(0.3, 1);
+            ctx.fillRect(s.x, s.y, s.size, s.size);
+        });
+        ctx.globalAlpha = 1;
+    }
+
+    if (state.isDay) {
+        titleElem.className = 'title-day';
+        factoryDesc.style.color = '#636363'; 
+        lyricsContainer.style.color = '#636363'; 
+        nightDisclaimer.style.display = 'none';
+        timeMarker.innerText = '🌞';
+    } else {
+        titleElem.className = 'title-night';
+        factoryDesc.style.color = '#eee'; 
+        lyricsContainer.style.color = '#fff'; 
+        nightDisclaimer.style.display = 'block';
+        timeMarker.innerText = '🌜';
+    }
+    
+    let totalCycle = CONFIG.dayLength * 2;
+    let currentProgress = state.isDay ? state.dayTimer : CONFIG.dayLength + state.dayTimer;
+    let progressPercent = (currentProgress / totalCycle) * 100;
+    timeMarker.style.left = `${progressPercent}%`;
+
+
+    ctx.fillStyle='#333'; ctx.fillRect(CONFIG.zones.office.x,CONFIG.zones.office.y,CONFIG.zones.office.w,CONFIG.zones.office.h);
+    ctx.fillStyle='#2c3e50'; ctx.fillRect(CONFIG.zones.ceo.x,CONFIG.zones.ceo.y,CONFIG.zones.ceo.w,CONFIG.zones.ceo.h);
+    let f = CONFIG.zones.funnel;
+    ctx.fillStyle = CONFIG.colors.funnels;
+    ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x+f.w, f.y); ctx.lineTo(f.x+f.w/2+10, f.y+f.h); ctx.lineTo(f.x+f.w/2-10, f.y+f.h); ctx.fill();
+    ctx.fillStyle=CONFIG.colors.belt; ctx.fillRect(CONFIG.zones.belt.x,CONFIG.zones.belt.y,CONFIG.zones.belt.w,CONFIG.zones.belt.h);
+    ctx.fillStyle='#555'; ctx.fillRect(CONFIG.zones.raw.x,CONFIG.zones.raw.y,CONFIG.zones.raw.w,CONFIG.zones.raw.h);
+    let t = CONFIG.zones.trash;
+    ctx.fillStyle = '#333'; ctx.fillRect(t.x, t.y, t.w, t.h); 
+    ctx.font = "12px sans-serif"; ctx.fillStyle='#fff'; ctx.fillText("TRASH", t.x+10, t.y+30);
+    ctx.fillStyle=CONFIG.colors.decoTable; ctx.fillRect(CONFIG.zones.decoTable.x,CONFIG.zones.decoTable.y,CONFIG.zones.decoTable.w,CONFIG.zones.decoTable.h);
+    let mq = CONFIG.zones.monitorQueue;
+    ctx.fillStyle = '#7f8c8d'; ctx.fillRect(mq.x, mq.y, mq.w, mq.h);
+    ctx.fillStyle='#34495e'; ctx.fillRect(CONFIG.zones.monitorPad.x, CONFIG.zones.monitorPad.y, CONFIG.zones.monitorPad.w, CONFIG.zones.monitorPad.h);
+    ctx.fillStyle = '#2d3436'; ctx.fillRect(CONFIG.zones.monitor.x, CONFIG.zones.monitor.y, CONFIG.zones.monitor.w, CONFIG.zones.monitor.h);
+    drawMonitorScreen();
+    let bookZone = CONFIG.zones.finish;
+    ctx.fillStyle = '#5d4037'; ctx.fillRect(bookZone.x, bookZone.y, bookZone.w, bookZone.h);
+    ctx.fillStyle = '#3e2723';
+    for(let i=0; i<6; i++) { let sy = bookZone.y + (bookZone.h/5) * i; ctx.fillRect(bookZone.x, sy, bookZone.w, 5); }
+
+    drawPieChart(); 
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    let rect = canvas.getBoundingClientRect();
+    let mx = e.clientX - rect.left;
+    let my = e.clientY - rect.top;
+    
+    if(!state.isDay) {
+        state.pucks.forEach(p => {
+            if(dist(mx, my, p.x, p.y) < 30) p.hit();
+        });
+    }
+
+    state.items.forEach(i => {
+        if(dist(mx, my, i.x, i.y) < 30) {
+            i.toggleQuality();
+        }
+    });
+});
+
+// [FIXED] 밤 종료 처리
+function finishNight() {
+    // 중립(Neutral): 엔딩 없이 즉시 다음 날로
+    if(state.dominance === 'NEUTRAL') {
+        resetGameToDay();
+    } 
+    // 악몽/길몽: 엔딩화면 5초 후 다음 날로
+    else {
+        state.phase = 'ENDING';
+        endingOverlay.style.display = 'flex';
+        
+        if(state.dominance === 'NIGHTMARE') {
+            endingOverlay.className = 'end-nightmare';
+            endTitle.innerText = "SYSTEM ERROR";
+            endDesc.innerText = "Puck has corrupted the world.\nNightmares are everywhere.";
+        } else {
+            endingOverlay.className = 'end-sweet';
+            endTitle.innerText = "SWEET DREAMS";
+            endDesc.innerText = "Titania protected the dreams.\nHave a wonderful night!";
+        }
+        
+        setTimeout(() => {
+            resetGameToDay();
+        }, 5000);
+    }
+}
+
+// [FIXED] 루프 로직: 리턴 전에 requestAnimationFrame 호출 보장
+function loop() {
+    // 1. 엔딩 중일 때
+    if (state.phase === 'ENDING') {
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        drawBG();
+        state.chars.forEach(c => { c.update(); c.draw(); });
+        requestAnimationFrame(loop);
+        return;
+    }
+
+    // 2. 게임 진행 (낮/밤)
+    state.frame++;
+    state.dayTimer++;
+    
+    // 시간 체크
+    if (state.dayTimer > CONFIG.dayLength) { 
+        if(state.isDay) {
+            // 밤 시작
+            state.isDay = false; 
+            state.dayTimer = 0; 
+            state.pucks.push(new Puck()); 
+        } else {
+            // 밤 종료 -> 엔딩/리셋 호출
+            finishNight();
+            // [중요] 여기서 리턴하더라도 다음 프레임을 요청해야 멈추지 않음!
+            requestAnimationFrame(loop);
+            return; 
+        }
+    }
+    
+    // 퍽 분신술 (밤 이벤트)
+    if(!state.isDay && state.dayTimer > CONFIG.dayLength * 0.66 && state.pucks.length < 3) {
+        if(state.frame % 60 === 0) {
+            let p = new Puck(); p.x = state.pucks[0].x; p.y = state.pucks[0].y;
+            state.pucks.push(p);
+            createEmote(p.x, p.y, 'CLONE!');
+        }
+    }
+
+    // 퍽 메시지
+    if (state.frame % 1200 === 0) {
+        showPuckMessage();
+    }
+
+    updateStats();
+
+    // 그리기
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drawBG();
+    state.houses.forEach(h=>h.draw());
+    state.pedestrians.forEach(p=> { p.update(); p.draw(); });
+    state.items.forEach(i => { i.update(); i.draw(); });
+    state.chars.sort((a,b)=>a.y - b.y); 
+    state.chars.forEach(c=>{c.update(); c.draw();});
+    
+    if(!state.isDay) state.pucks.forEach(p => { p.update(); p.draw(); });
+    
+    // 파티클
+    state.particles = state.particles.filter(p => p.life > 0);
+    state.particles.forEach(p=>{
+        p.life--;
+        if(p.type === 'emote') { 
+            p.y += p.vy; ctx.fillStyle = p.c; ctx.font = "bold 20px serif"; ctx.fillText(p.text, p.x, p.y); 
+        } 
+        else { 
+            p.x+=p.vx; p.y+=p.vy; ctx.fillStyle=p.c; ctx.globalAlpha=p.life/30; 
+            ctx.fillRect(p.x,p.y,2,2); ctx.globalAlpha=1; 
+        }
+    });
+    
+    requestAnimationFrame(loop);
+}
+
+window.addEventListener('resize',init);
+init();
+loop();
+</script>
+</body>
+</html>
