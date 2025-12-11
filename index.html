@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dream Factory: Puck's Night (Final Fix)</title>
+    <title>Dream Factory: Logic Update</title>
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -40,6 +40,24 @@
             position: absolute; top: -10px; left: 0%;
             font-size: 24px; margin-left: -12px; transition: left 0.1s linear;
         }
+
+        /* --- Score Board --- */
+        #score-board {
+            position: absolute; top: 20px; right: 70px;
+            display: flex; flex-direction: column; gap: 5px;
+            font-family: 'Press Start 2P', cursive; font-size: 12px;
+            z-index: 10; pointer-events: none;
+            text-align: right;
+        }
+        .score-item {
+            padding: 8px 12px; border-radius: 4px;
+            background: rgba(0, 0, 0, 0.6); color: #fff;
+            text-shadow: 1px 1px 0 #000;
+            transition: transform 0.2s;
+        }
+        .score-nightmare { border-left: 4px solid #00ff00; color: #00ff00; }
+        .score-sweet { border-left: 4px solid #ff69b4; color: #ff69b4; }
+        .score-neutral { border-left: 4px solid #fff; color: #fff; }
 
         #puck-msg-box {
             position: absolute; display: none; padding: 10px 15px;
@@ -146,6 +164,14 @@
         </div>
     </div>
     <div id="time-bar-container"><div id="time-marker">🌞</div></div>
+    
+    <!-- Score Board -->
+    <div id="score-board">
+        <div class="score-item score-sweet">SWEET: <span id="s-sweet">0</span></div>
+        <div class="score-item score-nightmare">NIGHTMARE: <span id="s-nightmare">0</span></div>
+        <div class="score-item score-neutral">NEUTRAL: <span id="s-neutral">0</span></div>
+    </div>
+
     <div id="puck-msg-box"><span id="puck-text"></span><span class="blink-cursor">_</span></div>
     
     <button id="help-btn">?</button>
@@ -177,6 +203,11 @@ const puckText = document.getElementById('puck-text');
 const endingOverlay = document.getElementById('ending-overlay');
 const endTitle = document.getElementById('end-title');
 const endDesc = document.getElementById('end-desc');
+
+// Score Elements
+const scoreElSweet = document.getElementById('s-sweet');
+const scoreElNightmare = document.getElementById('s-nightmare');
+const scoreElNeutral = document.getElementById('s-neutral');
 
 // Tutorial Elements
 const tutOverlay = document.getElementById('tutorial-overlay');
@@ -212,7 +243,9 @@ const CONFIG = {
         dayBG: '#f0f8ff', nightBG: '#0f0c29'
     },
     zones: {},
-    shelfCapacity: 35 
+    shelfCapacity: 35,
+    deliveryBonus: 500, // Bonus points for delivery
+    activeItemScore: 10 // Points per item currently on screen
 };
 
 // --- Puck's Messages ---
@@ -228,6 +261,7 @@ const puckMessages = [
 let state = {
     frame: 0, isDay: true, dayTimer: 0, phase: 'PLAYING',
     stats: { nightmare: 0, sweet: 0, neutral: 0 }, dominance: 'NEUTRAL',
+    deliveryScores: { nightmare: 0, sweet: 0, neutral: 0 }, // Accumulated delivery scores
     items: [], chars: [], houses: [], particles: [], pedestrians: [], dusts: [], stars: [], pucks: [], 
     shelfSlots: new Array(CONFIG.shelfCapacity).fill(null),
     monitor: { activeItem: null, timer: 0 }
@@ -260,7 +294,7 @@ const tutorialSteps = [
     },
     {
         title: "4. Quality Control (Monitor)",
-        text: "Finished dreams are inspected here. We ensure no nightmares slip through before storage.",
+        text: "Finished dreams are inspected here. If it's a nightmare, there's a 50% chance it will be discarded!",
         zone: 'monitor'
     },
     {
@@ -270,7 +304,7 @@ const tutorialSteps = [
     },
     {
         title: "⚠️ Night Threat (Puck)",
-        text: "At night, the mischievous fairy 'Puck' (who wanders in green by day) reveals his true form! He creates nightmares.",
+        text: "At night, the mischievous fairy 'Puck' reveals his true form! He creates nightmares with his aura.",
         zone: null
     },
     {
@@ -354,7 +388,6 @@ class Puck { // The Night Flying Puck
         if(Math.random() < 0.05) { this.vx = rand(-4,4); this.vy = rand(-4,4); }
         
         // Corrupt items (Green Aura Effect)
-        // Puck affects ALL items/ingredients it touches
         const auraRadiusSq = 80 * 80; // Range for the "light"
         for(let item of state.items) {
             if(item.qualityType !== 1 && distSq(this.x, this.y, item.x, item.y) < auraRadiusSq) {
@@ -371,7 +404,7 @@ class Puck { // The Night Flying Puck
     draw() {
         ctx.save(); ctx.translate(this.x | 0, this.y | 0);
         
-        // Green Glow Aura (Fixed: Use simple circles instead of gradients for reliable visibility and perf)
+        // Green Glow Aura
         if (this.stunTimer === 0) {
             let pulse = Math.sin(state.frame * 0.2) * 5;
             ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
@@ -380,14 +413,12 @@ class Puck { // The Night Flying Puck
             ctx.fillStyle = 'rgba(0, 255, 0, 0.4)';
             ctx.beginPath(); ctx.arc(0, 0, 30 + pulse/2, 0, Math.PI*2); ctx.fill();
         } else {
-            // Stun effect rotation
             ctx.rotate(rand(-0.2, 0.2));
         }
 
         ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.fill();
         ctx.fillStyle = '#00ff00'; ctx.font = "12px serif"; ctx.fillText("😈", -6, 4);
         
-        // Wings
         let wingY = this.stunTimer > 0 ? 0 : Math.sin(state.frame * 0.8) * 5;
         ctx.fillStyle = 'rgba(50,255,50,0.5)';
         ctx.beginPath(); ctx.ellipse(-10, -5 + wingY, 10, 5, -0.5, 0, Math.PI*2); ctx.fill();
@@ -408,7 +439,7 @@ class Item {
         this.reserved = false; 
         this.size = 5; 
         this.shape = 'blob'; 
-        this.qualityType = 0; 
+        this.qualityType = 0; // 0: Neutral, 1: Nightmare, 2: Sweet
         this.processedBy = new Set();
         this.slotIndex = -1;
         this.isChunk = false; 
@@ -419,7 +450,6 @@ class Item {
         this.shape = 'blob'; this.color = ingredients[0]; 
     }
     toggleQuality() {
-        // Logic: 0 -> 2 (Sweet) -> 1 (Nightmare) -> 0
         if (this.qualityType === 0) { 
             this.qualityType = 2; // Make Sweet
             createEmote(this.x, this.y-20, '❤️'); 
@@ -464,12 +494,30 @@ class Item {
             let targetY = CONFIG.zones.monitorPad.y + CONFIG.zones.monitorPad.h/2;
             this.x += (targetX - this.x) * 0.2; this.y += (targetY - this.y) * 0.2;
             if (state.monitor.timer > 30) { 
-                let emptySlot = state.shelfSlots.findIndex(id => id === null);
-                if (emptySlot !== -1) {
-                    state.shelfSlots[emptySlot] = this.id; this.slotIndex = emptySlot;
-                    this.stage = 'AUTO_MOVE_TO_SHELF';
-                    state.monitor.timer = 0; state.monitor.activeItem = null;
+                // --- MODIFIED MONITORING LOGIC ---
+                let passed = true;
+                if(this.qualityType === 1) { // Nightmare
+                    if(Math.random() < 0.5) {
+                        passed = false; // Caught!
+                        this.stage = 'DELETED';
+                        // Look for MonitorSup to emote
+                        let sup = state.chars.find(c => c.type === 'monitorSup');
+                        if(sup) { 
+                            createEmote(sup.x, sup.y - 20, '!!'); 
+                            sup.jump();
+                        }
+                    }
                 }
+
+                if(passed) {
+                    let emptySlot = state.shelfSlots.findIndex(id => id === null);
+                    if (emptySlot !== -1) {
+                        state.shelfSlots[emptySlot] = this.id; this.slotIndex = emptySlot;
+                        this.stage = 'AUTO_MOVE_TO_SHELF';
+                    }
+                }
+                
+                state.monitor.timer = 0; state.monitor.activeItem = null;
             }
         }
         else if (this.stage === 'AUTO_MOVE_TO_SHELF') {
@@ -498,7 +546,6 @@ class Item {
     draw() {
         ctx.save(); ctx.translate(this.x | 0, this.y | 0);
         
-        // Blink/Glow Effect (Optimized)
         if (this.qualityType === 1) { 
             // Nightmare (Green)
             ctx.fillStyle = 'rgba(0, 255, 0, 0.4)'; 
@@ -530,6 +577,33 @@ class Item {
             ctx.beginPath(); ctx.arc(0, 0, this.size, 0, Math.PI*2); ctx.fillStyle = this.color; ctx.fill();
         }
         ctx.restore();
+    }
+}
+
+class Pedestrian {
+    constructor() {
+        this.x = rand(0, canvas.width); this.y = canvas.height - 40 + rand(-10, 10);
+        this.dir = Math.random() < 0.5 ? 1 : -1; this.color = `hsl(${rand(0, 360)}, 70%, 50%)`; 
+        this.memoryTimer = rand(100, 200); // Reduced spawn rate (Original ~20-60)
+    }
+    update() {
+        if(!state.isDay) return;
+        this.x += this.dir * 0.5;
+        if(this.x < -20) this.x = canvas.width+20; if(this.x > canvas.width+20) this.x = -20;
+        this.memoryTimer--;
+        if (this.memoryTimer <= 0) { 
+            let item = new Item(); item.x = this.x; item.y = this.y - 20;
+            item.targetRawX = CONFIG.zones.raw.x + rand(10, CONFIG.zones.raw.w - 10);
+            item.targetRawY = CONFIG.zones.raw.y + rand(10, CONFIG.zones.raw.h - 10);
+            item.stage = 'FLYING_TO_FACTORY'; state.items.push(item);
+            this.memoryTimer = rand(100, 200); // Reset to slower rate
+        }
+    }
+    draw() {
+        if(!state.isDay) return;
+        ctx.fillStyle = this.color; ctx.fillRect(this.x-5, this.y-15, 10, 15);
+        ctx.fillStyle = '#ffeaa7'; ctx.beginPath(); ctx.arc(this.x, this.y-20, 5, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#333'; ctx.fillRect(this.x-4, this.y, 3, 8); ctx.fillRect(this.x+1, this.y, 3, 8);
     }
 }
 
@@ -666,24 +740,43 @@ class Janitor extends Character {
     runAI(speedMult) {
         let speed = CONFIG.speed.run * speedMult;
         if(this.state === 'IDLE') {
+            if (this.backpack.length >= 10) {
+                this.state = 'TO_TRASH';
+                return;
+            }
+            
             let trashItem = state.items.find(i => i.stage === 'RAW' && !i.carrier && !i.reserved && (i.baseColor === '#1dd1a1' || i.qualityType === 1));
-            if (trashItem) { this.target = trashItem; this.target.reserved = true; this.state = 'PICKUP'; }
+            
+            if (trashItem) { 
+                this.target = trashItem; 
+                this.target.reserved = true; 
+                this.state = 'PICKUP'; 
+            } else if (this.backpack.length > 0) {
+                // If no trash visible and have some, go dump it
+                this.state = 'TO_TRASH';
+            }
         }
         else if (this.state === 'PICKUP') {
             if(!this.target || !state.items.includes(this.target)) { this.state = 'IDLE'; return; }
             this.moveTo(this.target.x, this.target.y, speed, () => {
-               if(state.items.includes(this.target)) { this.target.carrier = this; this.state = 'TO_TRASH'; } 
+               if(state.items.includes(this.target)) { 
+                   // Collect into backpack instead of setting carrier
+                   this.backpack.push(1); // Just dummy marker
+                   let idx = state.items.indexOf(this.target);
+                   if(idx !== -1) state.items.splice(idx, 1);
+                   this.target = null;
+                   
+                   this.state = 'IDLE'; // Go back to finding more
+               } 
                else { this.state = 'IDLE'; }
             });
         }
         else if (this.state === 'TO_TRASH') {
             let tZone = CONFIG.zones.trash;
             this.moveTo(tZone.x + tZone.w/2, tZone.y + tZone.h/2, speed, () => {
-                if (this.target) {
+                if (this.backpack.length > 0) {
                     createParticle(this.x, this.y, '#555', 8); 
-                    let idx = state.items.indexOf(this.target);
-                    if(idx !== -1) state.items.splice(idx, 1);
-                    this.target = null;
+                    this.backpack = []; // Empty bag
                 }
                 this.state = 'IDLE';
             });
@@ -692,6 +785,11 @@ class Janitor extends Character {
     draw() {
         this.drawBase('#2c3e50');
         ctx.fillStyle = '#555'; ctx.fillRect(this.x-CONFIG.charSize/2, this.y-CONFIG.charSize/2+this.jumpY-3, CONFIG.charSize, 3);
+        // Draw bag indicator
+        if(this.backpack.length > 0) {
+            ctx.fillStyle = '#000';
+            ctx.beginPath(); ctx.arc(this.x+8, this.y+5, 3 + (this.backpack.length/2), 0, Math.PI*2); ctx.fill();
+        }
     }
 }
 
@@ -831,12 +929,20 @@ class Deliverer extends Character {
             let dSq = distSq(this.x, this.y, tx, ty);
             if (dSq < 25) {
                 if (this.target) {
+                    // Capture quality type BEFORE nulling target
+                    const qType = this.target.qualityType;
+
                     this.destHouse.receiveItem(this.target);
                     this.target.carrier = null;
                     let idx = state.items.indexOf(this.target);
                     if(idx !== -1) state.items.splice(idx, 1);
                     this.target = null;
                     createParticle(this.x, this.y, '#f1c40f', 8);
+                    
+                    // --- SCORING: DELIVERY BONUS ---
+                    if(qType === 1) state.deliveryScores.nightmare += CONFIG.deliveryBonus;
+                    else if(qType === 2) state.deliveryScores.sweet += CONFIG.deliveryBonus;
+                    else state.deliveryScores.neutral += CONFIG.deliveryBonus;
                 }
                 this.state = 'RETURN';
             } else { 
@@ -1053,33 +1159,6 @@ function init() {
     startTutorial();
 }
 
-// Re-implementing Pedestrian here for completeness as it wasn't a Character subclass
-class Pedestrian {
-    constructor() {
-        this.x = rand(0, canvas.width); this.y = canvas.height - 40 + rand(-10, 10);
-        this.dir = Math.random() < 0.5 ? 1 : -1; this.color = `hsl(${rand(0, 360)}, 70%, 50%)`; this.memoryTimer = rand(20, 60); 
-    }
-    update() {
-        if(!state.isDay) return;
-        this.x += this.dir * 0.5;
-        if(this.x < -20) this.x = canvas.width+20; if(this.x > canvas.width+20) this.x = -20;
-        this.memoryTimer--;
-        if (this.memoryTimer <= 0) { 
-            let item = new Item(); item.x = this.x; item.y = this.y - 20;
-            item.targetRawX = CONFIG.zones.raw.x + rand(10, CONFIG.zones.raw.w - 10);
-            item.targetRawY = CONFIG.zones.raw.y + rand(10, CONFIG.zones.raw.h - 10);
-            item.stage = 'FLYING_TO_FACTORY'; state.items.push(item);
-            this.memoryTimer = rand(10, 50); 
-        }
-    }
-    draw() {
-        if(!state.isDay) return;
-        ctx.fillStyle = this.color; ctx.fillRect(this.x-5, this.y-15, 10, 15);
-        ctx.fillStyle = '#ffeaa7'; ctx.beginPath(); ctx.arc(this.x, this.y-20, 5, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#333'; ctx.fillRect(this.x-4, this.y, 3, 8); ctx.fillRect(this.x+1, this.y, 3, 8);
-    }
-}
-
 // --- Helper Functions ---
 
 function createParticle(x, y, c, size) {
@@ -1125,6 +1204,31 @@ function updateStats() {
     let progress = state.dayTimer / CONFIG.dayLength;
     timeMarker.style.left = `${progress * 100}%`;
     timeMarker.innerText = state.isDay ? '🌞' : '🌙';
+
+    // Calculate Dynamic Scores for UI
+    // Delivery Score + (Current On-screen Items * 10)
+    let currentSweet = 0, currentNightmare = 0, currentNeutral = 0;
+    
+    for(const item of state.items) {
+        if(item.stage === 'DELETED') continue;
+        if(item.qualityType === 1) currentNightmare++;
+        else if(item.qualityType === 2) currentSweet++;
+        else currentNeutral++;
+    }
+
+    let finalSweet = state.deliveryScores.sweet + (currentSweet * CONFIG.activeItemScore);
+    let finalNightmare = state.deliveryScores.nightmare + (currentNightmare * CONFIG.activeItemScore);
+    let finalNeutral = state.deliveryScores.neutral + (currentNeutral * CONFIG.activeItemScore);
+
+    // Update Score Board UI
+    scoreElSweet.innerText = finalSweet;
+    scoreElNightmare.innerText = finalNightmare;
+    scoreElNeutral.innerText = finalNeutral;
+    
+    // Store current totals for ending logic comparison (snapshot)
+    state.stats.sweet = finalSweet;
+    state.stats.nightmare = finalNightmare;
+    state.stats.neutral = finalNeutral;
 }
 
 function drawBG() {
@@ -1185,6 +1289,9 @@ function resetGameToDay() {
     state.phase = 'PLAYING';
     state.pucks = [];
     state.items = []; 
+    // Reset Scores for new day
+    state.deliveryScores = { nightmare: 0, sweet: 0, neutral: 0 };
+    state.stats = { nightmare: 0, sweet: 0, neutral: 0 };
     state.shelfSlots.fill(null);
     endingOverlay.style.display = 'none';
     state.chars.forEach(c => c.reset());
@@ -1206,11 +1313,28 @@ canvas.addEventListener('mousedown', (e) => {
 // --- Main Loop ---
 
 function finishNight() {
+    // Check Scores
+    let s = state.stats; // Use the calculated totals from updateStats
+    let winner = 'NEUTRAL';
+    
+    if (s.nightmare > s.sweet && s.nightmare > s.neutral) winner = 'NIGHTMARE';
+    else if (s.sweet > s.nightmare && s.sweet > s.neutral) winner = 'SWEET';
+    
+    state.dominance = winner;
+
     if(state.dominance === 'NEUTRAL') { resetGameToDay(); } 
     else {
         state.phase = 'ENDING'; endingOverlay.style.display = 'flex';
-        if(state.dominance === 'NIGHTMARE') { endingOverlay.className = 'end-nightmare'; endTitle.innerText = "SYSTEM ERROR"; endDesc.innerText = "Puck has corrupted the world."; } 
-        else { endingOverlay.className = 'end-sweet'; endTitle.innerText = "SWEET DREAMS"; endDesc.innerText = "Titania protected the dreams."; }
+        if(state.dominance === 'NIGHTMARE') { 
+            endingOverlay.className = 'end-nightmare'; 
+            endTitle.innerText = "SYSTEM ERROR"; 
+            endDesc.innerText = "Puck has corrupted the world. Nightmares are everywhere."; 
+        } 
+        else { 
+            endingOverlay.className = 'end-sweet'; 
+            endTitle.innerText = "SWEET DREAMS"; 
+            endDesc.innerText = "Titania protected the dreams. Have a wonderful night!"; 
+        }
         setTimeout(() => { resetGameToDay(); }, 5000);
     }
 }
@@ -1225,8 +1349,9 @@ function loop() {
         state.frame++; state.dayTimer++;
         if (state.dayTimer > CONFIG.dayLength) { 
             if(state.isDay) { state.isDay = false; state.dayTimer = 0; state.pucks.push(new Puck()); } 
-            else { finishNight(); } // Removed 'return' here to fix freeze
+            else { finishNight(); } 
         }
+        
         // Logic continues...
         if(!state.isDay && state.dayTimer > CONFIG.dayLength * 0.66 && state.pucks.length < 3) {
             if(state.frame % 60 === 0) { let p = new Puck(); p.x = state.pucks[0].x; p.y = state.pucks[0].y; state.pucks.push(p); createEmote(p.x, p.y, 'CLONE!'); }
@@ -1266,7 +1391,6 @@ function loop() {
         requestAnimationFrame(loop);
     } catch (e) {
         console.error("Game Loop Error:", e);
-        // Attempt to restart or just stop safely without freezing UI
     }
 }
 
