@@ -2,1236 +2,1336 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>A Midsummer Night's Dream Factory: Loop Fixed</title>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DOTMILL Guestbook</title>
+    
+    <!-- Pretendard Web Font -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
     <style>
-        body { margin: 0; overflow: hidden; background-color: #f0f8ff; transition: background-color 4s; font-family: 'Courier New', monospace; }
+        /* 기본 스타일 */
+        body { 
+            margin: 0; overflow: hidden; background-color: #ffffff; 
+            font-family: 'Pretendard', sans-serif; 
+            user-select: none; -webkit-user-select: none; 
+        }
         canvas { display: block; }
+        
+        /* UI 레이아웃 */
+        #ui { position: absolute; top: 30px; left: 30px; pointer-events: none; color: #333; z-index: 10; transition: all 0.3s; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+        
+        /* 시뮬레이션 컨트롤 */
+        #sim-controls { display: flex; gap: 6px; pointer-events: auto; }
+        #sim-controls button {
+            background: rgba(255, 255, 255, 0.95); border: 1px solid #cbd5e1; border-radius: 8px;
+            padding: 8px 14px; cursor: pointer; font-size: 0.9rem; color: #334155;
+            font-weight: 700; font-family: 'Pretendard'; transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: center;
+            min-width: 40px;
+        }
+        #sim-controls button:hover { background: #fff; color: #0ea5e9; border-color: #0ea5e9; transform: translateY(-1px); }
+        #sim-controls button:active { transform: translateY(0); }
+        
+        /* 도움말 버튼 활성 상태 */
+        #btn-help.active { background: #e0f2fe; color: #0ea5e9; border-color: #0ea5e9; }
 
-        /* --- 좌측 UI --- */
-        #left-ui {
-            position: absolute; top: 20px; left: 20px;
-            font-family: 'Press Start 2P', cursive;
-            z-index: 10; pointer-events: none;
-            text-shadow: 2px 2px 0px #000;
-            max-width: 450px;
+        /* 도움말 팝업 박스 */
+        #help-popup {
+            display: none; /* 기본 숨김 */
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #cbd5e1; border-radius: 16px;
+            padding: 16px; width: 260px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            pointer-events: auto;
+            animation: popIn 0.2s ease;
+            font-size: 0.8rem; color: #475569; line-height: 1.6;
         }
-        #factory-title {
-            font-size: 22px; margin: 0 0 15px 0; line-height: 1.4;
-            transition: color 2s;
-        }
-        .title-day { color: hotpink; }
-        .title-night { color: #ffffcc; }
+        .help-section { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #e2e8f0; }
+        .help-section:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+        .help-title { font-weight: 800; color: #1e293b; margin-bottom: 6px; display: block; font-size: 0.85rem; }
+        .help-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .dot.green { background: #00e676; }
+        .dot.blue { background: #2979ff; }
+        .dot.yellow { background: #ef4444; } 
+        .dot.gray { background: #64748b; }
+        
+        .warning-txt { color: #ea580c; font-weight: 600; background: #fff7ed; padding: 8px; border-radius: 8px; margin-top: 5px; font-size: 0.75rem; }
 
-        #factory-desc {
-            font-size: 14px;
-            color: #636363; 
-            line-height: 1.6; font-family: 'Courier New', monospace; font-weight: bold;
-            transition: color 2s;
-            text-shadow: none;
+        /* 우편함 아이콘 */
+        #mailbox-icon {
+            position: absolute; right: 30px; bottom: 210px; width: 40px; height: 50px;
+            background: #ef4444; border: 4px solid #7f1d1d; border-radius: 8px 8px 0 0;
+            cursor: pointer; z-index: 25; box-shadow: 4px 4px 0px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
         }
-        #night-disclaimer {
-            display: none;
-            color: #2ecc71; margin-top: 10px; font-size: 0.9em;
+        #mailbox-icon:active { transform: scale(0.95); }
+        #mailbox-icon::after { content: ''; position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 20px; height: 6px; background: #7f1d1d; border-radius: 2px; }
+        #mailbox-icon::before { content: ''; position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); width: 8px; height: 20px; background: #333; z-index: -1; }
+        #mailbox-text {
+            position: absolute; top: -25px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.7); color: white; padding: 4px 8px; border-radius: 4px;
+            font-size: 11px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.2s;
+        }
+        #mailbox-icon:hover #mailbox-text { opacity: 1; }
+
+        .green-txt { color: #00e676; font-weight: 700; }
+        .blue-txt { color: #2979ff; font-weight: 700; }
+        .yellow-txt { color: #ef4444; font-weight: 700; } 
+        .gray-txt { color: #555; font-weight: 700; }
+
+        /* 안내 멘트 (우측 상단) */
+        #guide-text {
+            position: absolute; top: 30px; right: 30px; text-align: right; color: #444; pointer-events: auto; z-index: 10;
+            background: rgba(255,255,255,0.9); padding: 18px 22px; border-radius: 16px; backdrop-filter: blur(8px); 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08); letter-spacing: -0.01em; border: 1px solid rgba(255,255,255,0.5);
+            cursor: pointer; user-select: none;
+        }
+        #guide-text h2 { margin: 0 0 10px 0; font-size: 1.1rem; color: #1e293b; font-weight: 800; }
+        #guide-text p { margin: 0; font-size: 0.9rem; line-height: 1.6; color: #475569; font-weight: 500; word-break: keep-all; }
+
+        /* 흔들림 애니메이션 */
+        .shake { animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
         }
 
-        /* --- 우측 상단 타임 막대 --- */
-        #time-bar-container {
-            position: absolute; top: 30px; right: 250px;
-            width: 150px; height: 10px;
-            background: rgba(0,0,0,0.3); border-radius: 5px;
-            z-index: 10; pointer-events: none;
-        }
-        #time-marker {
-            position: absolute; top: -10px; left: 0%;
-            font-size: 24px; margin-left: -12px;
-            transition: left 0.1s linear;
-        }
+        #audio-btn { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; background-color: #2c3e50; color: white; border: 3px solid white; border-radius: 50%; cursor: pointer; z-index: 1000; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; box-shadow: 0 5px 15px rgba(0,0,0,0.3); transition: transform 0.2s; }
+        #audio-btn:active { transform: scale(0.9); }
 
-        /* --- 우측 가사 스크롤 --- */
-        #lyrics-container {
-            position: absolute; top: 100px; right: 20px;
-            width: 200px; height: 60%;
-            overflow: hidden;
-            z-index: 10; pointer-events: none;
-            text-align: center; 
-            color: #636363; 
-            font-size: 12px; line-height: 1.8;
-            text-shadow: 1px 1px 0px rgba(255,255,255,0.5); 
-            mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
-            transition: color 2s, text-shadow 2s; 
+        /* 알림창 */
+        #custom-alert { display: none; position: fixed; top: 20%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 25px 40px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); z-index: 200; text-align: center; border: 1px solid #eee; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); width: 80%; max-width: 320px; }
+        #custom-alert h3 { margin: 0 0 10px 0; color: #2c3e50; font-weight: 700; font-size: 1.3rem; }
+        #pc-toast { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(30, 41, 59, 0.9); color: white; padding: 12px 24px; border-radius: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); z-index: 300; text-align: center; font-size: 0.9rem; pointer-events: none; animation: fadeInOut 2.5s ease forwards; }
+
+        /* 통합 모달 스타일 */
+        .modal-window { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 800px; height: 600px; background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); z-index: 100; flex-direction: column; overflow: hidden; border: 1px solid #f1f1f1; animation: fadeIn 0.3s ease; max-width: 90%; max-height: 90%; }
+        
+        .modal-header { padding: 15px 20px; background: #fff; border-bottom: 1px solid #f1f1f1; display: flex; justify-content: space-between; align-items: center; z-index: 10; position: relative;}
+        
+        .main-tabs { display: flex; gap: 8px; background: #f1f5f9; padding: 4px; border-radius: 12px; }
+        .tab-btn {
+            border: none; background: transparent; padding: 8px 16px; border-radius: 8px;
+            font-size: 0.9rem; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.2s;
+            font-family: 'Pretendard';
         }
-        #lyrics-content {
+        .tab-btn.active { background: white; color: #0f172a; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .tab-btn:hover:not(.active) { color: #334155; }
+
+        .view-toggle { display: flex; background: #f1f5f9; border-radius: 20px; padding: 4px; gap: 4px; font-size: 0.85rem; font-weight: 600; margin-left: auto; margin-right: 15px; }
+        .view-toggle label { cursor: pointer; padding: 6px 12px; border-radius: 16px; color: #64748b; transition: all 0.2s; display: flex; align-items: center; gap: 4px; }
+        .view-toggle label.active { background: white; color: #0ea5e9; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .close-modal-btn { cursor: pointer; font-size: 1.8rem; color: #94a3b8; line-height: 1; margin-left: 10px; }
+        
+        .tab-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; height: 100%; }
+
+        .msg-list-container { flex: 1; overflow-y: auto; padding: 0; background: #f8fafc; }
+        .list-item { padding: 20px 25px; border-bottom: 1px solid #f1f5f9; background: white; }
+        .list-date { font-size: 0.8rem; color: #94a3b8; margin-bottom: 6px; }
+        .list-receiver { font-weight: 700; color: #0ea5e9; margin-right: 6px; font-size: 0.95rem; }
+        .list-text { color: #334155; font-size: 1rem; word-break: break-all; line-height: 1.5; }
+        .empty-msg { text-align: center; padding: 40px; color: #94a3b8; font-size: 0.95rem; }
+        
+        #my-msg-auth { padding: 20px; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; gap: 10px; z-index: 10; position: relative; }
+        #my-name-input { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; font-family: 'Pretendard'; }
+        #my-msg-btn { background: #0ea5e9; color: white; border: none; padding: 0 15px; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: 'Pretendard'; }
+        #mailbox-content-area { flex: 1; position: relative; display: flex; flex-direction: column; overflow: hidden; height: 100%; }
+        #mailbox-canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #0f172a; overflow: hidden; display: none; }
+        #mailbox-bg-canvas { width: 100%; height: 100%; cursor: pointer; }
+        #mailbox-placeholder { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #94a3b8; text-align: center; width: 100%; pointer-events: none; line-height: 1.6; }
+        #my-msg-list-container { flex: 1; overflow-y: auto; background: #f8fafc; display: none; }
+        #modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 90; backdrop-filter: blur(4px); }
+
+        #input-bar { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); width: 92%; max-width: 620px; background: rgba(255, 255, 255, 0.95); padding: 8px 12px; border-radius: 50px; box-shadow: 0 10px 40px rgba(0,0,0,0.12); display: flex; align-items: center; gap: 8px; z-index: 30; border: 1px solid #e2e8f0; backdrop-filter: blur(10px); }
+        
+        .to-all-wrapper { display: flex; align-items: center; white-space: nowrap; font-size: 14px; font-weight: 600; color: #475569; margin-right: 2px; cursor: pointer; user-select: none; }
+        .to-all-wrapper input { margin-right: 4px; accent-color: #0ea5e9; width: 16px; height: 16px; cursor: pointer; }
+
+        #receiver-input { width: 80px; padding: 12px; border: none; border-radius: 25px; background: #e0f2fe; text-align: center; outline: none; font-size: 15px; font-family: 'Pretendard', sans-serif; font-weight: 600; color: #0369a1; transition: all 0.2s; } 
+        #receiver-input::placeholder { color: #7dd3fc; font-weight: 500; }
+        #receiver-input:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+
+        #msg-input { flex: 1; padding: 12px 16px; border: none; border-radius: 25px; background: #f1f5f9; outline: none; font-size: 16px; font-family: 'Pretendard', sans-serif; color: #334155; }
+        #send-btn { background: #0ea5e9; color: white; border: none; width: 42px; height: 42px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: background 0.2s, transform 0.1s; box-shadow: 0 4px 10px rgba(14, 165, 233, 0.3); flex-shrink: 0; }
+        #send-btn:hover { background: #0284c7; transform: scale(1.05); }
+        #send-btn:active { transform: scale(0.95); }
+        #send-btn:disabled { background: #cbd5e1; cursor: not-allowed; box-shadow: none; }
+
+        #style-group { position: relative; display: flex; align-items: center; }
+        #style-toggle-btn {
+            width: 42px; height: 42px; border-radius: 50%; border: 1px solid #cbd5e1; background: #fff;
+            color: #64748b; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+        #style-toggle-btn:hover { background: #f1f5f9; color: #334155; }
+        #style-toggle-btn.active { background: #e0f2fe; color: #0ea5e9; border-color: #0ea5e9; }
+
+        #style-options {
+            position: absolute; bottom: 55px; left: 0; 
+            background: white; padding: 8px; border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 1px solid #e2e8f0;
+            display: none; flex-direction: column; gap: 8px;
+            animation: popIn 0.2s ease;
+        }
+        #style-options.show { display: flex; }
+        
+        .style-opt-btn {
+            width: 40px; height: 40px; border-radius: 12px; border: 1px solid #e2e8f0;
+            background: #f8fafc; cursor: pointer; font-size: 1.2rem;
+            display: flex; align-items: center; justify-content: center;
             position: relative;
-            animation: scrollUp 90s linear infinite;
-            top: 100%;
         }
-        @keyframes scrollUp {
-            0% { top: 100%; }
-            100% { top: -250%; }
+        .style-opt-btn:hover { background: #f1f5f9; }
+        
+        .style-indicator {
+            position: absolute; bottom: -2px; right: -2px;
+            width: 16px; height: 16px; border-radius: 50%;
+            background: #333; border: 2px solid white;
+            font-size: 10px; color: white; display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-family: 'Pretendard', sans-serif;
         }
 
-        /* --- Puck's Message --- */
-        #puck-msg-box {
-            position: absolute;
-            display: none; 
-            padding: 10px 15px;
-            background-color: #000;
-            border: 2px solid #00ff00;
-            color: #00ff00;
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            font-size: 14px;
-            box-shadow: 5px 5px 0px rgba(0,0,0,0.5);
-            z-index: 100;
-            max-width: 300px;
-            pointer-events: none;
-        }
-        .blink-cursor {
-            animation: blink 1s step-end infinite;
-        }
-        @keyframes blink { 50% { opacity: 0; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, -45%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        @keyframes fadeInOut { 0% { opacity: 0; transform: translate(-50%, -40%); } 10% { opacity: 1; transform: translate(-50%, -50%); } 90% { opacity: 1; transform: translate(-50%, -50%); } 100% { opacity: 0; transform: translate(-50%, -60%); } }
 
-        /* --- 엔딩 오버레이 --- */
-        #ending-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: none; flex-direction: column;
-            justify-content: center; align-items: center;
-            font-family: 'Press Start 2P', cursive;
-            z-index: 999; text-align: center; pointer-events: none;
+        @media (max-width: 768px) {
+            #guide-text { display: block; top: 10px; left: 50%; right: auto; transform: translateX(-50%); width: 90%; text-align: center; }
+            #audio-btn { bottom: auto; top: 20px; right: 20px; width: 40px; height: 40px; font-size: 1.2rem; }
+            #ui { top: 95px; width: 92%; }
+            #sim-controls { width: 100%; justify-content: center; }
+            #mailbox-icon { right: 20px; bottom: 210px; }
+            #input-bar { bottom: 20px; width: 95%; padding: 8px; gap: 6px; }
+            .to-all-wrapper { font-size: 13px; }
+            #receiver-input { width: 50px; font-size: 13px; }
+            #msg-input { font-size: 14px; }
+            #send-btn { width: 36px; height: 36px; font-size: 1rem; }
+            #style-toggle-btn { width: 36px; height: 36px; font-size: 1.1rem; }
+            .modal-window { width: 380px; height: 550px; }
         }
-        .end-nightmare { background: rgba(0, 20, 0, 0.95); color: #00ff00; }
-        .end-sweet { background: rgba(255, 192, 203, 0.95); color: #ff1493; }
-        .end-neutral { background: rgba(0, 0, 0, 0.9); color: #fff; }
-        #end-title { font-size: 40px; margin-bottom: 20px; text-shadow: 4px 4px 0 #000; }
-        #end-desc { font-size: 16px; line-height: 1.6; text-shadow: 2px 2px 0 #000; }
-
     </style>
 </head>
 <body>
-    <div id="left-ui">
-        <h1 id="factory-title" class="title-day">A Midsummer Night's Dream Factory</h1>
-        <div id="factory-desc">
-            VIP customer, hello. We are a premium dream factory.
-            <div id="night-disclaimer">
-                *WARNiNG: Puck intrusion detected.<br>
-                *Oberon & Titania are defending.
+
+    <div id="ui">
+        <!-- 속도 및 일시정지 컨트롤 + 오디오 + 도움말 + 리셋 -->
+        <div id="sim-controls">
+            <button onclick="togglePause()" id="btn-pause" title="일시정지/재생">⏸</button>
+            <button onclick="toggleSpeed()" id="btn-speed" title="속도 조절">1x</button>
+            <button onclick="resetSimulation()" id="btn-reset" title="작업 초기화">🔄</button>
+            <button id="btn-audio" title="배경음악 On/Off">🔇</button>
+            <button onclick="toggleHelp()" id="btn-help" title="도움말 및 사용법">?</button>
+        </div>
+
+        <!-- 도움말 팝업 -->
+        <div id="help-popup">
+            <div class="help-section">
+                <span class="help-title">💡 색상별 의미</span>
+                <div class="help-row"><div class="dot green"></div> 방금 도착한 메시지 알림</div>
+                <div class="help-row"><div class="dot blue"></div> 파란 옷을 입은 동료들</div>
+                <div class="help-row"><div class="dot yellow"></div> 빨간 우편함: 내 메시지함</div>
+                <div class="help-row"><div class="dot gray"></div> 🔄 버튼: 작업 리셋</div>
+            </div>
+            <div class="help-section">
+                <span class="help-title">📨 메시지 보내는 법</span>
+                <p>
+                    하단 바에서 받는 사람 이름을(3글자) 입력하거나 '모두'를 체크하고,
+                    👕 버튼으로 캐릭터를 꾸민 뒤 메시지를 적어 전송하세요!
+                </p>
+                <div class="warning-txt">
+                    ⚠️ 한 번에 너무 많은 메시지를 보내면 오류가 날 수 있어용! 조금만 천천히 보내주세용 🥺
+                </div>
             </div>
         </div>
     </div>
 
-    <div id="time-bar-container">
-        <div id="time-marker">🌞</div>
+    <div id="mailbox-icon" title="내 우편함 확인하기" onclick="openMyMsgModal()">
+        <div id="mailbox-text">내 우편함</div>
     </div>
 
-    <div id="puck-msg-box">
-        <span id="puck-text"></span><span class="blink-cursor">_</span>
+    <!-- 우측 상단 안내 텍스트 (이스터에그 트리거) -->
+    <div id="guide-text" onclick="handleGuideClick()">
+        <h2>2026 닷밀 신년맞이 롤링페이퍼 📜</h2>
+        <p>
+            여기는 DOT을 굴려 멋진 것들을 만드는 방앗간, DOMILL입니다.<br>
+            화면에 보이는 동료들을 클릭해서 휴식을 선물하세요.<br>
+            그리고 동료들에게 익명으로 메시지를 전하세요.
+        </p>
     </div>
 
-    <div id="lyrics-container">
-        <div id="lyrics-content">
-            우리는 꿈을 만드는 그림자<br>
-            우리는 꿈을 만드는 그림자<br><br>
-            
-            달이 뜨는 밤이면<br>
-            마음 속으로 들어가<br><br>
-            
-            어떤 하루를 보내셨나요<br>
-            고민 때문에 잠 못 드나요<br>
-            당신을 위한 꿈을 만들어<br>
-            요정들의 세계 여기 꿈나라<br><br>
-            
-            개 꿈, 돼지 꿈<br>
-            길가다가 삐끗해서 똥 밟는 꿈<br>
-            이상한 꿈, 행복한 꿈,<br>
-            어떤 꿈이든 가능해<br><br>
-            
-            달의 그림자, 밤의 방랑자<br>
-            요정들의 세계 여기 꿈나라<br><br>
-            
-            여기는 당신을 위한 꿈나라<br>
-            여기는 당신을 위한 꿈나라<br>
-            달이 뜨는 밤이면<br>
-            마음 속으로 들어가<br><br>
-            
-            당신은 그냥 잠들면 돼요<br>
-            두려워하지 않아도 돼요<br><br>
-            
-            상상만 했던 멋진 일들이<br>
-            여기서는 현실이 될테니까<br><br>
-            <br><br> </div>
+    <div id="custom-alert">
+        <span id="alert-check">✅</span>
+        <h3>전송 완료!</h3>
+        <p>익명으로 메시지가 무사히 전달되었습니다! 📨</p>
     </div>
 
-    <div id="ending-overlay">
-        <h1 id="end-title"></h1>
-        <p id="end-desc"></p>
+    <div id="pc-toast">
+        PC에서 접속하시면 최적화된 경험을 하실 수 있습니다 💻
+    </div>
+
+    <div id="modal-overlay"></div>
+
+    <!-- 통합 메시지 모달 -->
+    <div id="my-msg-modal" class="modal-window">
+        <div class="modal-header">
+            <!-- 메인 탭 -->
+            <div class="main-tabs">
+                <button class="tab-btn active" id="tab-my" onclick="setMailboxTab('MY')">내 우편함 📬</button>
+                <button class="tab-btn" id="tab-all" onclick="setMailboxTab('ALL')">전체 메시지 📜</button>
+            </div>
+            
+            <!-- 내 메시지 탭일 때만 보이는 뷰 토글 -->
+            <div class="view-toggle" id="my-view-toggle">
+                <label id="toggle-list" onclick="setViewMode('list')">📄 목록</label>
+                <label id="toggle-scene" onclick="setViewMode('scene')" class="active">✨ 장면</label>
+            </div>
+            
+            <span class="close-modal-btn" data-target="my-msg-modal">×</span>
+        </div>
+
+        <!-- TAB 1: 내 우편함 내용 -->
+        <div id="tab-content-my" class="tab-content">
+            <div id="my-msg-auth">
+                <input type="text" id="my-name-input" placeholder="본인 이름을 입력하세요" onkeypress="if(event.key==='Enter') checkMyMessages()">
+                <button id="my-msg-btn" onclick="checkMyMessages()">확인</button>
+            </div>
+            <div id="mailbox-content-area">
+                <div id="mailbox-placeholder">이름을 입력하고 확인을 눌러주세요.<br>(정확히 일치해야 합니다)</div>
+                <div id="my-msg-list-container"></div>
+                <div id="mailbox-canvas-container">
+                    <canvas id="mailbox-bg-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: 전체 메시지 내용 -->
+        <div id="tab-content-all" class="tab-content" style="display:none;">
+            <div id="all-msg-list" class="msg-list-container"><div class="empty-msg">로딩 중... ⏳</div></div>
+        </div>
+    </div>
+
+    <div id="input-bar">
+        <label class="to-all-wrapper" title="체크하면 모두에게 메시지를 보냅니다">
+            <input type="checkbox" id="to-all-check">
+            <span>모두</span>
+        </label>
+        
+        <input type="text" id="receiver-input" placeholder="받는분" maxlength="5">
+        
+        <!-- 스타일 설정 버튼 그룹 -->
+        <div id="style-group">
+            <button id="style-toggle-btn" title="캐릭터 꾸미기">👕</button>
+            <div id="style-options">
+                <div class="style-opt-btn" onclick="cycleStyle('hair')" title="헤어스타일">
+                    💇‍♀️ <div class="style-indicator" id="ind-hair">🧑</div>
+                </div>
+                <div class="style-opt-btn" onclick="cycleStyle('shirt')" title="옷 색상">
+                    🎨 <div class="style-indicator" id="ind-shirt" style="background: #3b82f6;"></div>
+                </div>
+                <div class="style-opt-btn" onclick="cycleStyle('acc')" title="장식">
+                    🎀 <div class="style-indicator" id="ind-acc">❌</div>
+                </div>
+            </div>
+        </div>
+
+        <input type="text" id="msg-input" placeholder="메시지 (익명)" autocomplete="off" maxlength="40">
+        <button id="send-btn">➤</button>
     </div>
 
     <canvas id="canvas"></canvas>
 
 <script>
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-const titleElem = document.getElementById('factory-title');
-const factoryDesc = document.getElementById('factory-desc'); 
-const lyricsContainer = document.getElementById('lyrics-container'); 
-const nightDisclaimer = document.getElementById('night-disclaimer');
-const timeMarker = document.getElementById('time-marker');
-const puckBox = document.getElementById('puck-msg-box');
-const puckText = document.getElementById('puck-text');
-const endingOverlay = document.getElementById('ending-overlay');
-const endTitle = document.getElementById('end-title');
-const endDesc = document.getElementById('end-desc');
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwVUstSVxUqWBzLgxCoNUqRE02DVGa8dbjWFl6opbPqiqokuCjn9dEEf9qn6jrrW09QFA/exec";
 
-// --- 유틸리티 ---
-const rand = (min, max) => Math.random() * (max - min) + min;
-const dist = (x1, y1, x2, y2) => Math.sqrt((x2-x1)**2 + (y2-y1)**2);
-
-// --- 설정 ---
-const CONFIG = {
-    dayLength: 2000, 
-    charSize: 12,
-    speed: { walk: 2.0, run: 4.0, belt: 1.0, autoMove: 6.0, fly: 9.0 }, 
-    roles: {
-        mover: 5, janitor: 1, 
-        worker: 8, monitorSup: 1, 
-        decorator: 8, deliverer: 6, 
-        office: 6, ceo: 2, secretary: 1      
-    },
-    colors: {
-        memories: ['#ff9ff3', '#feca57', '#ff6b6b', '#48dbfb', '#1dd1a1', '#5f27cd'], 
-        roof: ['#e74c3c', '#8e44ad', '#2980b9'],
-        nightmare: '#00ff00', sweetDream: '#ff79cd',      
-        belt: '#95a5a6', funnels: '#e17055',
-        decoTable: '#95a5a6',
-        dayBG: '#f0f8ff', nightBG: '#0f0c29'
-    },
-    zones: {},
-    shelfCapacity: 35 
-};
-
-// --- Puck's Messages ---
-const puckMessages = [
-    "Puck's msg: Click on dreams so soft and fair,\nturn them to a green nightmare.",
-    "Puck's msg: 😛 (Bleh!)",
-    "Puck's msg: Is it not a joy to see?\nRuining dreams with wicked glee?",
-    "Puck's msg: I am Puck, the system's bug.\nGiving logic a mischievous tug."
-];
-
-// --- 상태 ---
-let state = {
-    frame: 0,
-    isDay: true,
-    dayTimer: 0,
-    phase: 'PLAYING', // PLAYING, ENDING
-    stats: { nightmare: 0, sweet: 0, neutral: 0 },
-    dominance: 'NEUTRAL',
+    const audioFiles = {};
+    const soundNames = ['bgm', 'sent', 'rest', 'pop', 'reset'];
+    let isBgmOn = false; 
     
-    items: [], chars: [], houses: [], particles: [], pedestrians: [], stars: [],
-    pucks: [], 
-    shelfSlots: new Array(CONFIG.shelfCapacity).fill(null),
-    monitor: { activeItem: null, timer: 0 }
-};
+    soundNames.forEach(name => {
+        const audio = new Audio(`sounds/${name}.mp3`);
+        if(name === 'bgm') { audio.loop = true; audio.volume = 0.4; } 
+        else { audio.volume = name === 'reset' ? 1.0 : 0.8; if(name === 'pop') audio.volume = 0.5; }
+        audioFiles[name] = audio;
+    });
 
-// --- Puck Class ---
-class Puck {
-    constructor() {
-        this.x = canvas.width/2; this.y = -50;
-        this.vx = rand(-3,3); this.vy = rand(2,4);
-        this.stunTimer = 0;
-    }
-    update() {
-        if(this.stunTimer > 0) {
-            this.stunTimer--; 
-            this.x += rand(-2,2); 
-            return;
-        }
-        this.x += this.vx; this.y += this.vy;
-        if(this.x < 0 || this.x > canvas.width) this.vx *= -1;
-        if(this.y < 0 || this.y > canvas.height - 100) this.vy *= -1;
-        if(Math.random() < 0.05) { this.vx = rand(-4,4); this.vy = rand(-4,4); }
-
-        state.items.forEach(item => {
-            if(item.qualityType !== 1 && dist(this.x, this.y, item.x, item.y) < 40) {
-                item.qualityType = 1; 
-                createParticle(item.x, item.y, '#00ff00', 3);
-            }
-        });
-    }
-    hit() {
-        this.stunTimer = 120; 
-        createEmote(this.x, this.y-20, '💫');
-        createParticle(this.x, this.y, '#ffff00', 10);
-    }
-    draw() {
-        ctx.save(); ctx.translate(this.x, this.y);
-        if(this.stunTimer > 0) ctx.rotate(rand(-0.5, 0.5));
-        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#00ff00'; ctx.font = "12px serif"; ctx.fillText("😈", -6, 4);
-        let wingY = Math.sin(state.frame * 0.8) * 5;
-        ctx.fillStyle = 'rgba(50,255,50,0.5)';
-        ctx.beginPath(); ctx.ellipse(-10, -5 + wingY, 10, 5, -0.5, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(10, -5 + wingY, 10, 5, 0.5, 0, Math.PI*2); ctx.fill();
-        ctx.restore();
-    }
-}
-
-// --- Item Class ---
-class Item {
-    constructor() {
-        this.id = Math.random().toString(36).substr(2, 9);
-        this.x = 0; this.y = 0;
-        this.baseColor = CONFIG.colors.memories[Math.floor(rand(0, CONFIG.colors.memories.length))];
-        this.ingredients = [this.baseColor]; 
-        this.color = this.baseColor;
-        this.stage = 'RAW'; 
-        this.carrier = null;
-        this.reserved = false; 
-        this.size = 5; 
-        this.shape = 'blob'; 
-        this.qualityType = 0; 
-        this.processedBy = new Set();
-        this.slotIndex = -1;
-        this.isChunk = false; 
-    }
-    initChunk(ingredients) {
-        this.isChunk = true; this.ingredients = ingredients;
-        this.size = 6 + Math.sqrt(ingredients.length) * 2; 
-        this.shape = 'blob'; this.color = ingredients[0]; 
-    }
-    toggleQuality() {
-        if (this.qualityType === 0) { this.qualityType = 1; createEmote(this.x, this.y-20, '!!'); }
-        else if (this.qualityType === 1) { this.qualityType = 2; createEmote(this.x, this.y-20, '❤️'); }
-        else { this.qualityType = 0; }
-    }
-    update() {
-        if (this.carrier) { 
-            this.x = this.carrier.x; 
-            this.y = this.carrier.type === 'deliverer' ? this.carrier.y + 15 : this.carrier.y - 14;
-            return; 
-        }
-        if (this.y > canvas.height + 100) { this.stage = 'DELETED'; }
-        
-        if (this.stage === 'FLYING_TO_FACTORY') {
-            let d = dist(this.x, this.y, this.targetRawX, this.targetRawY);
-            if (d < 5) { this.stage = 'RAW'; this.x = this.targetRawX; this.y = this.targetRawY; } 
-            else { this.x += (this.targetRawX - this.x) * 0.05; this.y += (this.targetRawY - this.y) * 0.05; }
-        }
-        else if (this.stage === 'ON_BELT') {
-            this.x += CONFIG.speed.belt; this.y = CONFIG.zones.belt.y + 15;
-            if (this.x > CONFIG.zones.belt.x + CONFIG.zones.belt.w) {
-                this.stage = 'PENDING_DECO'; 
-                this.x = CONFIG.zones.beltEnd.x + rand(0, 30); this.y = CONFIG.zones.beltEnd.y + rand(0, 30);
-                this.shape = 'polished'; 
-            }
-        }
-        else if (this.stage === 'WAITING_MONITOR') {
-            if (!state.monitor.activeItem) { this.stage = 'MONITORING'; } 
-            else { let qx = CONFIG.zones.monitorQueue.x + CONFIG.zones.monitorQueue.w - 15; if (this.x < qx) this.x += 0.5; }
-        }
-        else if (this.stage === 'MONITORING') {
-            state.monitor.timer++; state.monitor.activeItem = this; 
-            let targetX = CONFIG.zones.monitorPad.x + CONFIG.zones.monitorPad.w/2;
-            let targetY = CONFIG.zones.monitorPad.y + CONFIG.zones.monitorPad.h/2;
-            this.x += (targetX - this.x) * 0.2; this.y += (targetY - this.y) * 0.2;
-            if (state.monitor.timer > 30) { 
-                let emptySlot = state.shelfSlots.findIndex(id => id === null);
-                if (emptySlot !== -1) {
-                    state.shelfSlots[emptySlot] = this.id; this.slotIndex = emptySlot;
-                    this.stage = 'AUTO_MOVE_TO_SHELF';
-                    state.monitor.timer = 0; state.monitor.activeItem = null;
-                }
-            }
-        }
-        else if (this.stage === 'AUTO_MOVE_TO_SHELF') {
-            let row = Math.floor(this.slotIndex / 5); let col = this.slotIndex % 5;
-            let targetX = CONFIG.zones.finish.x + 15 + col * 22;
-            let targetY = CONFIG.zones.finish.y + 15 + row * 28 + 15;
-            let d = dist(this.x, this.y, targetX, targetY);
-            if (d < CONFIG.speed.autoMove + 1) { 
-                this.stage = 'ON_SHELF'; this.x = targetX; this.y = targetY; this.reserved = false; 
-            }
-            else { 
-                this.x += (targetX - this.x)/d * CONFIG.speed.autoMove; 
-                this.y += (targetY - this.y)/d * CONFIG.speed.autoMove; 
-            }
-        }
-        else if (this.stage === 'ON_SHELF') {
-            if (this.slotIndex !== -1) {
-                let row = Math.floor(this.slotIndex / 5); let col = this.slotIndex % 5;
-                this.x = CONFIG.zones.finish.x + 15 + col * 22;
-                this.y = CONFIG.zones.finish.y + 15 + row * 28 + 15;
-            }
-        }
-    }
-    draw() {
-        ctx.save(); ctx.translate(this.x, this.y);
-        
-        if (this.qualityType === 1) { ctx.shadowColor = '#00ff00'; ctx.shadowBlur = 15; ctx.fillStyle = 'rgba(0, 255, 0, 0.4)'; ctx.beginPath(); ctx.arc(0,0, this.size+6, 0, Math.PI*2); ctx.fill(); }
-        else if (this.qualityType === 2) { ctx.shadowColor = '#ff69b4'; ctx.shadowBlur = 15; ctx.fillStyle = 'rgba(255, 105, 180, 0.4)'; ctx.beginPath(); ctx.arc(0,0, this.size+6, 0, Math.PI*2); ctx.fill(); }
-
-        if (['PACKED', 'WAITING_MONITOR', 'MONITORING', 'AUTO_MOVE_TO_SHELF', 'ON_SHELF', 'DELIVERING'].includes(this.stage) || (this.carrier && this.stage === 'PACKED')) {
-            ctx.fillStyle = this.ingredients[0]; ctx.fillRect(-6, -6, 12, 12);
-            ctx.fillStyle = '#fff'; ctx.fillRect(-2, -6, 4, 12); ctx.fillRect(-6, -2, 12, 4);
-            ctx.strokeStyle = '#fff'; ctx.lineWidth=1; ctx.strokeRect(-6,-6,12,12);
-            ctx.restore(); return;
-        }
-        if (this.stage === 'DELETED') { ctx.restore(); return; }
-        if (this.isChunk) {
-            let radius = this.size * (this.carrier ? 0.8 : 1);
-            ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI*2); 
-            if(this.ingredients.length > 1) {
-                let grad = ctx.createLinearGradient(-radius, -radius, radius, radius);
-                this.ingredients.forEach((c, i) => grad.addColorStop(i/(this.ingredients.length-1), c));
-                ctx.fillStyle = grad;
-            } else { ctx.fillStyle = this.ingredients[0]; }
-            ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.4)'; for(let i=0; i<3; i++) ctx.fillRect(rand(-3,3), rand(-3,3), 2, 2);
+    const audioBtn = document.getElementById('btn-audio');
+    audioBtn.addEventListener('click', () => {
+        if (isBgmOn) {
+            audioFiles['bgm'].pause(); audioBtn.innerText = '🔇'; isBgmOn = false;
         } else {
-            ctx.beginPath(); ctx.arc(0, 0, this.size, 0, Math.PI*2); ctx.fillStyle = this.color; ctx.fill();
+            audioFiles['bgm'].play().then(() => { audioBtn.innerText = '🔊'; isBgmOn = true; })
+            .catch(e => { alert("소리 파일을 로딩 중이거나 찾을 수 없습니다."); });
         }
-        ctx.restore();
-    }
-}
-
-// --- Character Class ---
-class Character {
-    constructor(type, id) {
-        this.type = type; this.id = id;
-        this.x = 0; this.y = 0;
-        this.target = null; this.state = 'IDLE'; 
-        this.timer = 0; this.jumpY = 0; this.jumpV = 0;
-        this.backpack = []; 
-        this.init();
-    }
+    });
     
-    init() {
-        if(this.type==='worker') {
-            let spacing = CONFIG.zones.belt.w / CONFIG.roles.worker;
-            this.fixedPos = { x: CONFIG.zones.belt.x + spacing/2 + this.id*spacing, y: CONFIG.zones.belt.y + 45 };
-        } else if(this.type==='office') {
-            this.fixedPos = { x: CONFIG.zones.office.x + 30 + (this.id%3)*60, y: CONFIG.zones.office.y + 40 + Math.floor(this.id/3)*50 };
-        } else if(this.type==='monitorSup') {
-            this.fixedPos = { x: CONFIG.zones.monitor.x + 120, y: CONFIG.zones.monitor.y + 80 }; 
+    function playSound(name) {
+        if (isBgmOn && audioFiles[name]) { audioFiles[name].currentTime = 0; audioFiles[name].play().catch(e => {}); }
+    }
+
+    const receiverInput = document.getElementById('receiver-input'); 
+    const msgInput = document.getElementById('msg-input');
+    const sendBtn = document.getElementById('send-btn');
+    const toAllCheck = document.getElementById('to-all-check'); 
+    const myMsgModal = document.getElementById('my-msg-modal');
+    const overlay = document.getElementById('modal-overlay');
+    const closeBtns = document.querySelectorAll('.close-modal-btn');
+    const myNameInput = document.getElementById('my-name-input');
+    const customAlert = document.getElementById('custom-alert');
+
+    const CUSTOM_SHIRT_COLORS = [
+        '#3b82f6', '#1e293b', '#64748b', 
+        '#ef4444', '#f97316', '#eab308', 
+        '#22c55e', '#0ea5e9', '#6366f1', '#a855f7'
+    ]; 
+    const HAIR_ICONS = ['🧑', '🦱', '👱', '👩']; 
+    const ACC_ICONS = ['❌', '🎄', '🌸']; 
+
+    let currentStyle = { hair: 0, shirt: 0, acc: 0 };
+
+    const styleToggleBtn = document.getElementById('style-toggle-btn');
+    const styleOptions = document.getElementById('style-options');
+    const indHair = document.getElementById('ind-hair');
+    const indShirt = document.getElementById('ind-shirt');
+    const indAcc = document.getElementById('ind-acc');
+
+    styleToggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        styleOptions.classList.toggle('show');
+        styleToggleBtn.classList.toggle('active');
+    });
+
+    window.addEventListener('click', (e) => {
+        if (!e.target.closest('#style-group')) {
+            styleOptions.classList.remove('show');
+            styleToggleBtn.classList.remove('active');
         }
+    });
+
+    function cycleStyle(type) {
+        if (type === 'hair') {
+            currentStyle.hair = (currentStyle.hair + 1) % HAIR_ICONS.length;
+            indHair.innerText = HAIR_ICONS[currentStyle.hair];
+        } else if (type === 'shirt') {
+            currentStyle.shirt = (currentStyle.shirt + 1) % CUSTOM_SHIRT_COLORS.length;
+            indShirt.style.backgroundColor = CUSTOM_SHIRT_COLORS[currentStyle.shirt];
+        } else if (type === 'acc') {
+            currentStyle.acc = (currentStyle.acc + 1) % ACC_ICONS.length;
+            indAcc.innerText = ACC_ICONS[currentStyle.acc];
+        }
+    }
+
+    let currentMailboxTab = 'MY';
+
+    window.setMailboxTab = (tab) => {
+        currentMailboxTab = tab;
+        const tabMy = document.getElementById('tab-my');
+        const tabAll = document.getElementById('tab-all');
+        const contentMy = document.getElementById('tab-content-my');
+        const contentAll = document.getElementById('tab-content-all');
+        const myViewToggle = document.getElementById('my-view-toggle');
+
+        if (tab === 'MY') {
+            tabMy.classList.add('active'); tabAll.classList.remove('active');
+            contentMy.style.display = 'flex'; contentAll.style.display = 'none';
+            myViewToggle.style.visibility = 'visible'; setViewMode(currentViewMode); 
+        } else {
+            tabMy.classList.remove('active'); tabAll.classList.add('active');
+            contentMy.style.display = 'none'; contentAll.style.display = 'flex';
+            myViewToggle.style.visibility = 'hidden';
+            if (mbAnimationId) cancelAnimationFrame(mbAnimationId); 
+            renderAllMessages();
+        }
+    }
+
+    let currentViewMode = 'scene';
+    const mbListContainer = document.getElementById('my-msg-list-container');
+    const mbCanvasContainer = document.getElementById('mailbox-canvas-container');
+    const mbToggleList = document.getElementById('toggle-list');
+    const mbToggleScene = document.getElementById('toggle-scene');
+
+    function setViewMode(mode) {
+        currentViewMode = mode;
+        if (mode === 'list') {
+            mbListContainer.style.display = 'block'; mbCanvasContainer.style.display = 'none';
+            mbToggleList.classList.add('active'); mbToggleScene.classList.remove('active');
+            if (mbAnimationId) cancelAnimationFrame(mbAnimationId);
+        } else {
+            mbListContainer.style.display = 'none'; mbCanvasContainer.style.display = 'block';
+            mbToggleList.classList.remove('active'); mbToggleScene.classList.add('active');
+            resizeMailboxCanvas(); animateMailbox(); 
+        }
+    }
+
+    function resizeMailboxCanvas() {
+        const rect = document.getElementById('mailbox-content-area').getBoundingClientRect();
+        mbCanvas.width = rect.width; mbCanvas.height = rect.height;
+    }
+
+    const mbCanvas = document.getElementById('mailbox-bg-canvas');
+    const mbCtx = mbCanvas.getContext('2d');
+    const mbPlaceholder = document.getElementById('mailbox-placeholder');
+    let mbDancers = [];
+    let mbSnowflakes = [];
+    let mbAnimationId = null;
+    let mbMouse = { x: -1000, y: -1000 };
+
+    mbCanvas.addEventListener('mousemove', (e) => {
+        const rect = mbCanvas.getBoundingClientRect();
+        const scaleX = mbCanvas.width / rect.width; const scaleY = mbCanvas.height / rect.height;
+        mbMouse.x = (e.clientX - rect.left) * scaleX; mbMouse.y = (e.clientY - rect.top) * scaleY;
+    });
+    mbCanvas.addEventListener('mouseleave', () => { mbMouse.x = -1000; mbMouse.y = -1000; });
+
+    toAllCheck.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            receiverInput.disabled = true; receiverInput.value = ''; receiverInput.placeholder = '전체';
+        } else {
+            receiverInput.disabled = false; receiverInput.placeholder = '받는분';
+        }
+    });
+
+    function showCustomAlert() {
+        customAlert.style.display = 'block'; setTimeout(() => { customAlert.style.display = 'none'; }, 2500);
+    }
+
+    async function sendMessage() {
+        let receiver = '';
+        const rawName = receiverInput.value.trim();
+
+        if (toAllCheck.checked) {
+            receiver = 'ALL';
+        } else {
+            const namePattern = /^[가-힣]{3}$/;
+            if (!namePattern.test(rawName)) return alert("받는 분의 정확한 이름을 입력해주세요.\n(한글 3글자)");
+            receiver = rawName;
+        }
+
+        const text = msgInput.value.trim();
+        if (!text) return alert("내용을 입력해주세요!");
         
-        if(this.fixedPos) { this.x=this.fixedPos.x; this.y=this.fixedPos.y; }
-        else { this.x = CONFIG.zones.raw.x; this.y = CONFIG.zones.raw.y; } 
+        sendBtn.disabled = true; const originalPlaceholder = msgInput.placeholder;
+        msgInput.value = ''; msgInput.placeholder = '전송 중... 🚀';
         
-        if(this.type==='deliverer') {
-            this.x = canvas.width + 100 + rand(0,100); 
-            this.y = rand(100, 300);
-        }
-    }
+        const styleData = JSON.stringify(currentStyle);
+        const finalPayload = { name: receiver, text: text, style: styleData };
 
-    reset() {
-        this.target = null; this.state = 'IDLE'; this.timer = 0; this.backpack = [];
-        this.jumpY = 0; this.jumpV = 0;
-    }
-
-    jump() { if(this.jumpY === 0) this.jumpV = -6; }
-    
-    update() {
-        if(state.phase === 'ENDING') {
-            if(state.dominance === 'SWEET') {
-                 if (Math.random() < 0.05) this.jump();
-            }
-            if (this.jumpV !== 0 || this.jumpY !== 0) {
-                this.jumpY += this.jumpV; this.jumpV += 0.5; if(this.jumpY >= 0) { this.jumpY = 0; this.jumpV = 0; }
-            }
-            return;
-        }
-
-        let speedMult = 1.0;
-        if (!state.isDay) {
-            if (state.dominance === 'NIGHTMARE') {
-                speedMult = 0.5; 
-                if(Math.random()<0.05) { this.x += rand(-2,2); return; } 
-            } else if (state.dominance === 'SWEET') {
-                speedMult = 1.5; 
-                if(Math.random()<0.01) createEmote(this.x, this.y-25, '🎵');
-            }
-        }
-
-        if(this.type !== 'deliverer' && (this.jumpV !== 0 || this.jumpY !== 0)) {
-            this.jumpY += this.jumpV; this.jumpV += 0.5; if(this.jumpY >= 0) { this.jumpY = 0; this.jumpV = 0; }
-        }
-
-        if(this.fixedPos) {
-            this.x = this.fixedPos.x; this.y = this.fixedPos.y;
-            if(this.type==='worker') this.beltWork(); 
-            if(this.type==='monitorSup') this.monitorWork();
-            return;
-        }
-
-        if (this.type === 'deliverer') {
-            this.delivererLogic(speedMult);
-            return;
-        }
-
-        if(['ceo','secretary'].includes(this.type)) { this.patrolLogic(speedMult); return; }
-        this.moveLogic(speedMult);
-    }
-    
-    delivererLogic(speedMult) {
-        if (state.isDay) {
-            if (this.x < canvas.width + 150) { this.x += 8; }
-            this.target = null; this.state = 'IDLE';
-            return;
-        }
-        let speed = CONFIG.speed.fly * speedMult;
-        if (this.state === 'IDLE' || this.state === 'RETURN' || this.state === 'WAITING') {
-            let job = state.items.find(i => i.stage === 'ON_SHELF' && !i.carrier && !i.reserved);
-            if (job) {
-                this.target = job; this.target.reserved = true; 
-                this.state = 'PICKUP';
-                this.destHouse = state.houses[Math.floor(Math.random() * state.houses.length)];
-            }
-        }
-        if (this.state === 'PICKUP') {
-            if (!this.target) { this.state = 'IDLE'; return; }
-            let dx = this.target.x - this.x; let dy = this.target.y - this.y; let d = Math.sqrt(dx*dx + dy*dy);
-            if (d < 5) {
-                if (this.target.slotIndex !== -1) {
-                    state.shelfSlots[this.target.slotIndex] = null; 
-                    this.target.slotIndex = -1; this.target.carrier = this;
-                    this.target.stage = 'DELIVERING'; this.state = 'DELIVER';
-                } else { this.state = 'IDLE'; }
-            } else { this.x += (dx/d) * speed; this.y += (dy/d) * speed; }
-        }
-        else if (this.state === 'DELIVER') {
-            if (!this.destHouse) { this.state = 'IDLE'; return; }
-            let tx = this.destHouse.win.x + 15; let ty = this.destHouse.win.y; let d = dist(this.x, this.y, tx, ty);
-            if (d < 5) {
-                if (this.target) {
-                    this.destHouse.receiveItem(this.target);
-                    this.target.carrier = null;
-                    state.items = state.items.filter(i => i !== this.target);
-                    this.target = null;
-                    createParticle(this.x, this.y, '#f1c40f', 8);
-                }
-                this.state = 'RETURN';
-            } else { this.x += (tx - this.x)/d * speed; this.y += (ty - this.y)/d * speed; }
-        }
-        else {
-            let waitX = CONFIG.zones.finish.x + CONFIG.zones.finish.w + 40 + (this.id % 2) * 30;
-            let waitY = CONFIG.zones.finish.y + 20 + (this.id * 25);
-            let d = dist(this.x, this.y, waitX, waitY);
-            if (d > 5) { this.x += (waitX - this.x)/d * speed; this.y += (waitY - this.y)/d * speed; this.state = 'RETURN'; } 
-            else { this.state = 'IDLE'; this.y += Math.sin(state.frame * 0.1 + this.id) * 0.5; }
-        }
-    }
-
-    beltWork() {
-        let item = state.items.find(i => i.stage==='ON_BELT' && Math.abs(i.x-this.x)<20 && !i.processedBy.has(this.id));
-        if(item) {
-            item.processedBy.add(this.id);
-            if (this.id < 3) item.shape = 'blob'; 
-            else if (this.id < 6) item.shape = Math.random()<0.5 ? 'square' : 'circle'; 
-            else item.shape = 'star'; 
-            createParticle(item.x, item.y, item.ingredients[0], 2);
-            this.jump();
-        }
-    }
-
-    monitorWork() {
-        let activeItem = state.monitor.activeItem;
-        if (activeItem && state.frame % 30 === 0) {
-            if (activeItem.qualityType === 1) { createEmote(this.x, this.y - 20, '!!'); this.jump(); } 
-            else if (activeItem.qualityType === 2) { createEmote(this.x, this.y - 20, '❤️'); }
-        }
-    }
-
-    patrolLogic(speedMult) {
-        let speed = CONFIG.speed.walk * speedMult;
-        if (this.type === 'secretary') {
-            speed = CONFIG.speed.run * 2.5 * speedMult; 
-            if (this.state === 'PATROL' || this.state === 'PICKUP') {
-                 this.jumpY = Math.abs(Math.sin(state.frame * 0.4)) * -6; 
-            } else {
-                this.jumpY = 0;
-            }
-            state.items.forEach(item => {
-                if (['PENDING_DECO', 'PACKED', 'WAITING_MONITOR', 'MONITORING', 'AUTO_MOVE_TO_SHELF', 'ON_SHELF'].includes(item.stage)) {
-                    if (dist(this.x, this.y, item.x, item.y) < 20 && Math.random() < 0.1) {
-                         item.toggleQuality();
-                    }
-                }
-            });
-        }
-        
-        if (this.type === 'ceo') {
-            if (this.id === 1) { 
-                if (Math.random() < 0.03) {
-                     const flowers = ['🌸', '🌺', '🌼', '🌷', '🌹', '🌻'];
-                     createEmote(this.x, this.y - 20, flowers[Math.floor(Math.random() * flowers.length)]);
-                }
-                state.items.forEach(i => {
-                    if(i.qualityType === 1 && dist(this.x, this.y, i.x, i.y) < 100 && Math.random() < 0.1) {
-                        i.qualityType = 2; 
-                        createParticle(this.x, this.y, '#ff69b4', 5);
-                        createEmote(i.x, i.y-20, '✨');
-                    }
+        const performFetch = async (retries = 3, delay = 1500) => {
+            try {
+                await fetch(GOOGLE_SCRIPT_URL, { 
+                    method: 'POST', 
+                    mode: 'no-cors', 
+                    cache: 'no-cache', 
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+                    body: JSON.stringify(finalPayload) 
                 });
-            } else { 
-                state.pucks.forEach(p => {
-                    if(p.stunTimer === 0 && dist(this.x, this.y, p.x, p.y) < 60) {
-                        p.hit();
-                        createEmote(this.x, this.y-30, '⚔️');
-                    }
-                });
+            } catch (err) {
+                console.error("Send Error:", err);
+                if (retries > 1) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return performFetch(retries - 1, delay * 2);
+                } else {
+                    throw err;
+                }
             }
-        }
+        };
 
-        if(this.state === 'IDLE') {
-            let spots;
-            if (this.type === 'ceo' && this.id === 1) {
-                spots = [
-                      {x: CONFIG.zones.office.x + CONFIG.zones.office.w/2, y: CONFIG.zones.office.y + 60}, 
-                      {x: CONFIG.zones.ceo.x + 30, y: CONFIG.zones.ceo.y + 40}
-                ];
-            } else {
-                spots = [
-                    {x: CONFIG.zones.monitor.x + 40, y: CONFIG.zones.monitor.y + 80},
-                    {x: CONFIG.zones.funnel.x, y: CONFIG.zones.funnel.y + 50},
-                    {x: CONFIG.zones.finish.x + 50, y: CONFIG.zones.finish.y + 100},
-                    {x: CONFIG.zones.ceo.x + 30, y: CONFIG.zones.ceo.y + 40}
-                ];
-            }
-            let dest = spots[Math.floor(Math.random()*spots.length)];
-            this.target = dest; this.state = 'PATROL';
-        } 
-        else if (this.state === 'PATROL') {
-            this.moveTo(this.target.x, this.target.y, speed, () => {
-                this.state = 'WATCHING'; this.timer = 0;
-            });
-        }
-        else if (this.state === 'WATCHING') {
-            this.timer++; if (this.timer > 150) this.state = 'IDLE'; 
-        }
-    }
-
-    moveLogic(speedMult) {
-        let speed = CONFIG.speed.walk * speedMult;
-        if(this.type === 'decorator') speed = CONFIG.speed.run * speedMult;
-        if(this.type === 'mover' || this.type === 'janitor') speed = CONFIG.speed.run * speedMult; 
-
-        if(this.state==='IDLE' || this.state==='WAITING' || this.state==='MEETING') {
-            this.findJob();
-            if(this.state==='IDLE' && Math.random()<0.02) this.x += rand(-2, 2);
+        try {
+            await performFetch();
             
-            if (this.type === 'decorator' && this.state === 'IDLE' && !this.target) {
-                let waitX = CONFIG.zones.decoTable.x + CONFIG.zones.decoTable.w + 20;
-                let waitY = CONFIG.zones.decoTable.y + 20 + (this.id * 15); 
-                let d = dist(this.x, this.y, waitX, waitY);
-                if (d > 5) { this.moveTo(waitX, waitY, speed, () => { this.state = 'WAITING'; }); } 
-                else { this.state = 'WAITING'; }
+            if (window.distributeSingleMessage) {
+                window.distributeSingleMessage({ 
+                    name: receiver, 
+                    text: text, 
+                    style: { ...currentStyle } 
+                });
             }
-            if (this.state === 'WAITING' && Math.random() < 0.02) {
-                const talks = ['🎀', '✨', '🎨', '🤔', '💎', '🌈', '💝'];
-                createEmote(this.x, this.y - 15, talks[Math.floor(Math.random()*talks.length)]);
-            }
-            return;
+            playSound('sent'); showCustomAlert();
+            if (!toAllCheck.checked) receiverInput.value = ''; 
+        } catch (error) { 
+            console.error("Final failure:", error);
+            alert("전송에 실패했습니다. (서버 혼잡 또는 네트워크 오류)"); 
+        } finally { 
+            sendBtn.disabled = false; msgInput.placeholder = originalPlaceholder; msgInput.focus(); 
         }
+    }
 
-        if (this.type === 'janitor') { 
-            if (this.state === 'PICKUP') {
-                if(!this.target || !state.items.includes(this.target)) { this.state = 'IDLE'; return; }
-                this.moveTo(this.target.x, this.target.y, speed, () => {
-                   if(state.items.includes(this.target)) {
-                       this.target.carrier = this; this.state = 'TO_TRASH';
-                   } else { this.state = 'IDLE'; }
-                });
-            } else if (this.state === 'TO_TRASH') {
-                let tZone = CONFIG.zones.trash;
-                this.moveTo(tZone.x + tZone.w/2, tZone.y + tZone.h/2, speed, () => {
-                    if (this.target) {
-                        createParticle(this.x, this.y, '#555', 8); 
-                        state.items = state.items.filter(i => i !== this.target);
-                        this.target = null;
-                    }
-                    this.state = 'IDLE';
-                });
-            }
-            return;
-        }
-
-        if (this.type === 'mover') {
-            if (this.state === 'GATHER') {
-                if (!this.target || !state.items.includes(this.target)) { this.state = 'IDLE'; return; }
-                this.moveTo(this.target.x, this.target.y, speed, () => {
-                    if (state.items.includes(this.target)) {
-                        this.backpack.push(this.target.color);
-                        state.items = state.items.filter(i => i !== this.target);
-                    }
-                    this.target = null;
-                    if (this.backpack.length < 4) {
-                        let nextItem = this.findRawItem();
-                        if (nextItem) { this.target = nextItem; } 
-                        else { this.state = 'TO_FUNNEL'; }
-                    } else { this.state = 'TO_FUNNEL'; }
-                });
-            } else if (this.state === 'TO_FUNNEL') {
-                let funnelTop = {x: CONFIG.zones.funnel.x + CONFIG.zones.funnel.w/2, y: CONFIG.zones.funnel.y};
-                this.moveTo(funnelTop.x, funnelTop.y, speed, () => {
-                    if (this.backpack.length > 0) {
-                        let chunk = new Item();
-                        chunk.initChunk([...this.backpack]);
-                        chunk.x = funnelTop.x; chunk.y = funnelTop.y + 20; chunk.stage = 'ON_BELT';
-                        state.items.push(chunk);
-                        this.backpack = [];
-                    }
-                    this.state = 'RETURN';
-                });
-            } else if (this.state === 'RETURN') {
-                let base = CONFIG.zones.raw;
-                this.moveTo(base.x + rand(10, base.w-10), base.y + rand(10, base.h-10), speed, () => { this.state = 'IDLE'; });
-            }
-            return; 
-        }
-
-        if (this.type === 'decorator') {
-            if(this.state==='PICKUP') {
-                if(!this.target) { this.state='IDLE'; return; }
-                this.moveTo(this.target.x, this.target.y, speed, ()=>{
-                    if(this.target) {
-                        this.target.carrier = this; this.target.stage = 'ON_TABLE';
-                        this.state = 'TO_TABLE';
-                    } else this.state = 'IDLE';
-                });
-            } else if(this.state==='TO_TABLE') {
-                let tx = CONFIG.zones.decoTable.x + 10 + (this.id % 4)*20;
-                let ty = CONFIG.zones.decoTable.y + 10 + Math.floor(this.id/4)*40;
-                this.moveTo(tx, ty, speed, ()=>{ this.state='DECORATING'; this.timer = 0; });
-            } else if(this.state==='DECORATING') {
-                this.timer++;
-                if(this.timer > 30) { 
-                    if(this.target) { this.target.stage = 'PACKED'; createParticle(this.x, this.y - 15, '#fff', 5); }
-                    this.state = 'TO_QUEUE'; 
+    async function renderAllMessages() {
+        const container = document.getElementById('all-msg-list');
+        container.innerHTML = '<div class="empty-msg">데이터를 불러오는 중입니다...<br>(약 1~2초 소요)</div>';
+        try {
+            const response = await fetch(GOOGLE_SCRIPT_URL); const data = await response.json(); container.innerHTML = ''; 
+            if (!data || data.length === 0) { container.innerHTML = '<div class="empty-msg">메시지 없음</div>'; return; }
+            data.forEach(row => {
+                const dateRaw = new Date(row[0]); const dateStr = (dateRaw.getMonth()+1) + '/' + dateRaw.getDate() + ' ' + dateRaw.getHours() + ':' + String(dateRaw.getMinutes()).padStart(2,'0');
+                const div = document.createElement('div'); div.className = 'list-item';
+                let displayMsg = row[2] || "";
+                let displayReceiver = row[1];
+                let receiverClass = 'list-receiver';
+                if (displayReceiver === 'ALL') {
+                    displayReceiver = '모두에게 📢'; receiverClass = 'list-receiver green-txt'; 
+                } else {
+                    displayReceiver = `To. ${displayReceiver}`;
                 }
-            } else if(this.state==='TO_QUEUE') {
-                let queueZone = CONFIG.zones.monitorQueue;
-                let qx = queueZone.x + rand(5, queueZone.w-10);
-                let qy = queueZone.y + rand(5, queueZone.h-5);
-                this.moveTo(qx, qy, speed, ()=>{
-                    if(this.target) { 
-                        this.target.carrier = null; this.target.stage = 'WAITING_MONITOR'; 
-                        this.target.x = qx; this.target.y = qy; this.target = null; 
-                    }
-                    this.state = 'RETURN'; 
-                });
-            } else if(this.state==='RETURN') {
-                let base = CONFIG.zones.decoTable;
-                this.moveTo(base.x + base.w/2, base.y + base.h + 10, speed, ()=>{ this.state='WAITING'; });
-            }
-            return;
-        }
-    }
-
-    findRawItem() {
-        let items = state.items.filter(i => 
-            i.stage==='RAW' && !i.carrier && !i.isChunk && !i.reserved &&
-            i.baseColor !== '#1dd1a1' && i.qualityType !== 1
-        );
-        if (items.length === 0) return null;
-        items.sort((a,b) => dist(this.x, this.y, a.x, a.y) - dist(this.x, this.y, b.x, b.y));
-        let chosen = items[0]; chosen.reserved = true; return chosen;
-    }
-
-    findJob() {
-        if (this.type === 'janitor') {
-            let trashItem = state.items.find(i => 
-                i.stage === 'RAW' && !i.carrier && !i.reserved &&
-                (i.baseColor === '#1dd1a1' || i.qualityType === 1)
-            );
-            if (trashItem) { this.target = trashItem; this.target.reserved = true; this.state = 'PICKUP'; }
-            return;
-        }
-
-        if(this.type==='mover') {
-            if (this.backpack.length > 0) {
-                if(this.backpack.length < 4) {
-                   let next = this.findRawItem();
-                   if(next) { this.target = next; this.state='GATHER'; }
-                   else { this.state = 'TO_FUNNEL'; } 
-                } else { this.state = 'TO_FUNNEL'; }
-                return;
-            } 
-            this.target = this.findRawItem();
-            if (this.target) this.state = 'GATHER';
-        }
-        else if(this.type==='decorator') {
-            this.target = state.items.find(i=>i.stage==='PENDING_DECO' && !i.carrier && !i.reserved);
-            if(this.target) { this.target.reserved = true; this.state='PICKUP'; }
-        }
-    }
-
-    moveTo(tx,ty,spd,onDone) {
-        let d=dist(this.x,this.y,tx,ty);
-        if(d<5){ if(onDone) onDone(); } else { this.x+=(tx-this.x)/d*spd; this.y+=(ty-this.y)/d*spd; }
-    }
-
-    draw() {
-        let s=CONFIG.charSize, yOff=this.jumpY;
-        let color = '#7f8c8d'; 
-        if(this.type === 'worker') color = '#e84393'; 
-        if(this.type === 'mover') color = '#e67e22';
-        if(this.type === 'office') color = '#0984e3';
-        if(this.type === 'ceo') {
-             color = (this.id === 1) ? '#ffffff' : '#2d3436'; 
-        }
-        if(this.type === 'secretary') color = '#00b894';
-        if(this.type === 'decorator') color = '#8e44ad';
-        if(this.type === 'janitor') color = '#2c3e50'; 
-        if(this.type === 'deliverer') color = '#f1c40f';
-
-        ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(this.x, this.y + (this.type==='deliverer'?15:0), s/2, s/4, 0, 0, Math.PI*2); ctx.fill();
-
-        ctx.fillStyle=color; ctx.fillRect(this.x-s/2,this.y-s/2+yOff,s,s*1.3); 
-        ctx.fillStyle='#ffeaa7'; ctx.beginPath(); ctx.arc(this.x,this.y-s/2+yOff,s/2,0,Math.PI*2); ctx.fill(); 
-        
-        if(this.type === 'janitor') { ctx.fillStyle = '#555'; ctx.fillRect(this.x-s/2, this.y-s/2+yOff-3, s, 3); }
-
-        if(this.type === 'deliverer') {
-            ctx.fillStyle = '#333'; ctx.fillRect(this.x-4, this.y-s/2-2, 8, 3); 
-            ctx.fillStyle = '#bdc3c7'; ctx.fillRect(this.x-s/2-2, this.y-s/2+yOff+2, 2, 8);
-            if (!state.isDay) {
-                ctx.fillStyle = Math.random()>0.5 ? '#e67e22' : '#f1c40f';
-                ctx.beginPath(); ctx.moveTo(this.x-s/2, this.y+yOff+8); ctx.lineTo(this.x-s/2-4, this.y+yOff+16 + rand(0,4)); ctx.lineTo(this.x-s/2+2, this.y+yOff+8); ctx.fill();
-                if ((this.state === 'IDLE' || this.state === 'RETURN') && state.frame % 20 < 10) {
-                     ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(this.x, this.y - 15, 4, 0, Math.PI*2); ctx.stroke();
-                }
-            }
-        }
-
-        if(this.type === 'office') {
-            ctx.fillStyle = '#b2bec3'; ctx.fillRect(this.x - 10, this.y + 5, 20, 10);
-            ctx.fillStyle = '#2d3436'; ctx.fillRect(this.x - 5, this.y - 2, 10, 8);
-            let item = state.monitor.activeItem;
-            if (!item) { ctx.fillStyle = '#000'; ctx.fillRect(this.x - 4, this.y - 1, 8, 6); } 
-            else {
-                let baseColor = item.ingredients[0] || item.color; 
-                ctx.fillStyle = baseColor; ctx.fillRect(this.x - 4, this.y - 1, 8, 6);
-                if(Math.floor(state.frame/5)%2===0) { ctx.fillStyle = '#fff'; ctx.fillRect(this.x - 4, this.y - 1, 8, 6); }
-            }
-        }
-
-        if(this.type === 'ceo') { 
-            ctx.fillStyle = '#c0392b'; ctx.fillRect(this.x-s/2-2, this.y-s/2+yOff, 2, s*1.3);
-            ctx.strokeStyle = '#f1c40f'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(this.x+s, this.y+yOff); ctx.lineTo(this.x+s, this.y+s+yOff); ctx.stroke();
-        }
-        if(this.type === 'secretary') { ctx.fillStyle = '#333'; ctx.fillRect(this.x-3, this.y-s/2+yOff-2, 6, 2); }
-        
-        if(this.type === 'mover' && this.backpack.length > 0) {
-            this.backpack.forEach((c, i) => {
-                ctx.fillStyle = c; ctx.beginPath(); ctx.arc(this.x, this.y-s-5-(i*4)+yOff, 4, 0, Math.PI*2); ctx.fill();
+                div.innerHTML = `<div class="list-date">${dateStr}</div><div><span class="${receiverClass}">${displayReceiver}</span> <span class="list-text">${displayMsg}</span></div>`;
+                container.appendChild(div);
             });
+        } catch (error) { container.innerHTML = '<div class="empty-msg">불러오기 실패!</div>'; }
+    }
+
+    class Snowflake {
+        constructor(w, h) {
+            this.x = Math.random() * w; this.y = Math.random() * h;
+            this.size = Math.random() * 2 + 0.5; this.speed = Math.random() * 1 + 0.5;
+            this.opacity = Math.random() * 0.5 + 0.3;
+        }
+        update(w, h) {
+            this.y += this.speed; this.x += Math.sin(this.y * 0.05) * 0.5;
+            if (this.y > h) { this.y = -10; this.x = Math.random() * w; }
+        }
+        draw(ctx) {
+            ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
         }
     }
-}
 
-class House {
-    constructor(x,w,h) {
-        this.x=x; this.w=w; this.h=h; this.y=canvas.height-h; 
-        this.roof=CONFIG.colors.roof[Math.floor(rand(0,3))];
-        this.win={x:x+w/2-15, y:this.y+30, on:false, color:'#fff', timer:0, type:0};
-    }
-    receiveItem(item) {
-        this.win.on=true; this.win.timer=300; this.win.type = item.qualityType;
-        if (item.qualityType === 1) { this.win.color = CONFIG.colors.nightmare; createEmote(this.win.x+15, this.win.y-20, '!!'); }
-        else if (item.qualityType === 2) { this.win.color = CONFIG.colors.sweetDream; createEmote(this.win.x+15, this.win.y-20, '❤️'); }
-        else { this.win.color = item.ingredients[0]; }
-    }
-    draw(){
-        ctx.fillStyle = state.isDay ? '#2c3e50' : '#1a252f'; 
-        ctx.fillRect(this.x+5,this.y,this.w-10,this.h);
-        ctx.fillStyle=this.roof; ctx.beginPath(); ctx.moveTo(this.x,this.y); ctx.lineTo(this.x+this.w/2,this.y-20); ctx.lineTo(this.x+this.w,this.y); ctx.fill();
-        
-        if (!state.isDay) {
-            ctx.fillStyle = '#2c3e50'; ctx.fillRect(this.win.x, this.win.y, 30, 30);
-            ctx.fillStyle = '#8e44ad'; ctx.fillRect(this.win.x+2, this.win.y+15, 26, 12);
-            ctx.fillStyle = '#fff'; ctx.fillRect(this.win.x+3, this.win.y+12, 8, 6);
-            ctx.fillStyle = '#ffccaa'; ctx.beginPath(); ctx.arc(this.win.x+7, this.win.y+15, 3.5, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = '#3498db'; ctx.fillRect(this.win.x+2, this.win.y+18, 26, 9);
-            if (Math.floor(state.frame/60)%2 === 0) {
-                 ctx.fillStyle = '#fff'; ctx.font = "8px sans-serif"; ctx.fillText("z", this.win.x+15, this.win.y+10);
+    class PartyFairy {
+        constructor(msg, isPrivate, w, h) {
+            this.msg = msg; 
+            this.isPrivate = isPrivate; 
+            this.x = Math.random() * (w - 60) + 30;
+            this.y = Math.random() * (h - 100) + 80; 
+            this.style = msg.style || { hair: 0, shirt: 0, acc: 0 };
+            this.shirtColor = CUSTOM_SHIRT_COLORS[this.style.shirt] || CUSTOM_SHIRT_COLORS[0];
+            this.bodyOffset = Math.random() * 100;
+            this.dir = Math.random() < 0.5 ? -1 : 1;
+            this.speed = 0.5 + Math.random();
+            this.blinkTimer = Math.random() * 200;
+            this.isBlinking = false;
+            this.isHovered = false; 
+        }
+        update(w, h) {
+            this.bodyOffset += 0.15;
+            this.x += this.dir * this.speed * 0.3;
+            if (this.x < 30 || this.x > w - 30) this.dir *= -1;
+            this.blinkTimer--;
+            if (this.blinkTimer <= 0) {
+                this.isBlinking = true;
+                if (this.blinkTimer <= -10) { this.isBlinking = false; this.blinkTimer = 100 + Math.random() * 200; }
             }
         }
-        if(this.win.timer>0) this.win.timer--; else this.win.on=false;
-        
-        let winColor = state.isDay ? '#87ceeb' : (this.win.on ? this.win.color : 'rgba(0,0,0,0.3)');
-        if (state.isDay) { ctx.fillStyle = winColor; ctx.fillRect(this.win.x,this.win.y,30,30); } 
-        else if (this.win.on) {
-             ctx.globalAlpha = 0.6; ctx.fillStyle = winColor; ctx.fillRect(this.win.x,this.win.y,30,30);
-             ctx.shadowColor=this.win.color; ctx.shadowBlur=20; ctx.fillRect(this.win.x,this.win.y,30,30); ctx.shadowBlur=0; ctx.globalAlpha = 1.0;
+        draw(ctx) {
+            ctx.save(); ctx.translate(this.x, this.y);
+            const bounce = Math.sin(this.bodyOffset) * 6; ctx.translate(0, bounce);
+            if (this.isPrivate) { ctx.shadowColor = '#ff69b4'; ctx.shadowBlur = 20; }
+            ctx.fillStyle = this.shirtColor; ctx.fillRect(-8, -15, 16, 20); 
+            ctx.fillStyle = '#333'; ctx.fillRect(-8, 5, 16, 10); 
+            ctx.fillStyle = '#fce4d4'; ctx.fillRect(-6, -24, 12, 9); 
+            ctx.shadowBlur = 0; ctx.fillStyle = '#333';
+            if (this.isBlinking) { ctx.fillRect(-4, -22, 3, 1); ctx.fillRect(2, -22, 3, 1); } else { ctx.fillRect(-4, -23, 2, 2); ctx.fillRect(2, -23, 2, 2); }
+            this.drawHair(ctx);
+            ctx.strokeStyle = this.shirtColor; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(-8, -12); ctx.lineTo(-14, -12 - Math.cos(this.bodyOffset) * 5); ctx.moveTo(8, -12); ctx.lineTo(14, -12 + Math.cos(this.bodyOffset) * 5); ctx.stroke();
+            this.drawAcc(ctx);
+            this.drawBubble(ctx);
+            ctx.restore();
+        }
+        drawHair(ctx) {
+            ctx.fillStyle = '#4a3b2a'; const h = this.style.hair;
+            if (h === 0) { ctx.fillRect(-7, -26, 14, 4); ctx.beginPath(); ctx.moveTo(-7, -24); ctx.lineTo(7, -24); ctx.quadraticCurveTo(8, -24, 8, -20); ctx.lineTo(-8, -20); ctx.quadraticCurveTo(-8, -24, -7, -24); ctx.fill(); } 
+            else if (h === 1) { ctx.beginPath(); ctx.arc(0, -25, 8, Math.PI, 0); ctx.arc(-6, -23, 4, 0, Math.PI*2); ctx.arc(6, -23, 4, 0, Math.PI*2); ctx.arc(0, -28, 4, 0, Math.PI*2); ctx.fill(); } 
+            else if (h === 2) { ctx.fillRect(-7, -26, 14, 4); ctx.beginPath(); ctx.arc(0, -28, 3.5, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.moveTo(0, -28); ctx.quadraticCurveTo(5, -32, 6, -26); ctx.stroke(); } 
+            else { ctx.fillRect(-8, -26, 16, 6); ctx.fillRect(-9, -22, 4, 12); ctx.fillRect(5, -22, 4, 12); }
+        }
+        drawAcc(ctx) {
+            const a = this.style.acc;
+            if (a === 1) { ctx.strokeStyle = '#8B4513'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-3, -25); ctx.lineTo(-8, -32); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-6, -29); ctx.lineTo(-4, -33); ctx.stroke(); ctx.beginPath(); ctx.moveTo(3, -25); ctx.lineTo(8, -32); ctx.stroke(); ctx.beginPath(); ctx.moveTo(6, -29); ctx.lineTo(4, -33); ctx.stroke(); ctx.fillStyle = 'red'; ctx.beginPath(); ctx.arc(0, -18, 1.5, 0, Math.PI*2); ctx.fill(); } 
+            else if (a === 2) { ctx.fillStyle = '#ff69b4'; for(let i=0; i<5; i++) { const angle = (i * 2 * Math.PI) / 5; const r = 3; ctx.beginPath(); ctx.arc(6 + Math.cos(angle)*r, -28 + Math.sin(angle)*r, 2, 0, Math.PI*2); ctx.fill(); } ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(6, -28, 2, 0, Math.PI*2); ctx.fill(); }
+        }
+        drawBubble(ctx) {
+            if (!this.assignedMessage) return;
+            const msg = this.assignedMessage;
+            ctx.save(); ctx.translate(this.x, this.y - 35);
+            ctx.font = 'bold 14px "Pretendard", sans-serif'; const tm = ctx.measureText(msg.text), nm = ctx.measureText(msg.name);
+            const w = Math.min(Math.max(tm.width, nm.width) + 24, 220); 
+            const words = msg.text.split('');
+            let lines = []; let currentLine = words[0];
+            for (let i = 1; i < words.length; i++) {
+                const width = ctx.measureText(currentLine + words[i]).width;
+                if (width < 200) { currentLine += words[i]; } 
+                else { lines.push(currentLine); currentLine = words[i]; }
+            }
+            lines.push(currentLine);
+            const h = lines.length * 18 + 30; 
+            let bubbleX = 0;
+            if (this.x - w/2 < 10) bubbleX = 10 - (this.x - w/2);
+            if (this.x + w/2 > canvas.width - 10) bubbleX = (canvas.width - 10) - (this.x + w/2);
+            ctx.translate(bubbleX, 0);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx.shadowColor = 'rgba(0,0,0,0.2)'; ctx.shadowBlur = 10;
+            ctx.beginPath(); ctx.roundRect(-w/2, -h, w, h, 12); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(-bubbleX, 0); ctx.lineTo(-bubbleX - 6, -6); ctx.lineTo(-bubbleX + 6, -6); ctx.fill();
+            ctx.shadowBlur = 0; ctx.fillStyle = '#334155'; ctx.textAlign = 'center'; 
+            lines.forEach((line, i) => { ctx.fillText(line, 0, -h + 20 + (i * 18)); });
+            ctx.font = '500 12px "Pretendard"'; ctx.fillStyle = '#64748b'; 
+            let displayName = msg.name;
+            if (displayName === 'ALL') { ctx.fillStyle = '#00e676'; displayName = '모두에게'; } else { ctx.fillStyle = '#ec4899'; }
+            ctx.fillText(`To. ${displayName}`, 0, -10);
+            ctx.restore();
         }
     }
-}
 
-class Pedestrian {
-    constructor() {
-        this.x = rand(0, canvas.width);
-        this.y = canvas.height - 40 + rand(-10, 10);
-        this.dir = Math.random() < 0.5 ? 1 : -1;
-        this.color = `hsl(${rand(0, 360)}, 70%, 50%)`;
-        this.memoryTimer = rand(20, 60); 
-    }
-    update() {
-        if(!state.isDay) return;
-        this.x += this.dir * 0.5;
-        if(this.x < -20) this.x = canvas.width+20; if(this.x > canvas.width+20) this.x = -20;
-        this.memoryTimer--;
-        if (this.memoryTimer <= 0) { this.spawnMemory(); this.memoryTimer = rand(10, 50); }
-    }
-    spawnMemory() {
-        let item = new Item();
-        item.x = this.x; item.y = this.y - 20;
-        item.targetRawX = CONFIG.zones.raw.x + rand(10, CONFIG.zones.raw.w - 10);
-        item.targetRawY = CONFIG.zones.raw.y + rand(10, CONFIG.zones.raw.h - 10);
-        item.stage = 'FLYING_TO_FACTORY';
-        state.items.push(item);
-    }
-    draw() {
-        if(!state.isDay) return;
-        ctx.fillStyle = this.color; ctx.fillRect(this.x-5, this.y-15, 10, 15);
-        ctx.fillStyle = '#ffeaa7'; ctx.beginPath(); ctx.arc(this.x, this.y-20, 5, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#333'; ctx.fillRect(this.x-4, this.y, 3, 8); ctx.fillRect(this.x+1, this.y, 3, 8);
-    }
-}
-
-let cy; 
-function init() {
-    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-    cy = canvas.height*0.45;
-    
-    CONFIG.zones = {
-        office:{x:canvas.width/2-200,y:30,w:250,h:100}, 
-        ceo:{x:canvas.width/2+80,y:30,w:100,h:80},
-        raw:{x:50,y:cy,w:120,h:120}, 
-        trash:{x:60, y:cy+140, w:60, h:50}, 
-        funnel:{x:200, y:cy-40, w:50, h:60}, 
-        belt:{x:220,y:cy+20,w:420,h:40}, 
-        beltEnd:{x:650,y:cy+20,w:40,h:50}, 
-        decoTable:{x:700,y:cy-20,w:100,h:100}, 
-        monitorQueue:{x:800, y:cy-30, w:30, h:100}, 
-        monitor:{x:840, y:cy-80, w:100, h:70}, 
-        monitorPad:{x:840, y:cy+20, w:100, h:40}, 
-        finish:{x:980,y:cy-50,w:140,h:240}, 
-    };
-    
-    state.houses = Array.from({length:8},(_,i)=>new House(50+i*(canvas.width/9),canvas.width/10,rand(80,120)));
-    state.pedestrians = Array.from({length:10}, ()=>new Pedestrian());
-    state.stars = [];
-    for(let i=0; i<100; i++) state.stars.push({x:rand(0,canvas.width), y:rand(0,canvas.height/2), size:rand(0.5,2)});
-    state.chars = [];
-    for(let r in CONFIG.roles) for(let i=0;i<CONFIG.roles[r];i++) state.chars.push(new Character(r,i));
-}
-
-// [리셋 로직] - 낮으로 완벽 복귀
-function resetGameToDay() {
-    state.isDay = true;
-    state.dayTimer = 0;
-    state.phase = 'PLAYING';
-    state.items = []; // 꿈 제거
-    state.pucks = []; // 퍽 제거
-    state.particles = [];
-    state.shelfSlots.fill(null); // 선반 초기화
-    state.monitor.activeItem = null;
-    state.monitor.timer = 0;
-    state.stats = { nightmare: 0, sweet: 0, neutral: 0 };
-    state.dominance = 'NEUTRAL';
-
-    // 캐릭터 위치/상태 초기화
-    state.chars.forEach(c => {
-        c.reset(); 
-        c.init();  
-    });
-
-    // UI/배경 초기화
-    titleElem.className = 'title-day';
-    factoryDesc.style.color = '#636363';
-    lyricsContainer.style.color = '#636363';
-    nightDisclaimer.style.display = 'none';
-    timeMarker.innerText = '🌞';
-    endingOverlay.style.display = 'none';
-
-    console.log("🌞 Day Reset Complete.");
-}
-
-function createParticle(x,y,c,n){
-    for(let i=0;i<n;i++) state.particles.push({x,y,c,vx:(Math.random()-0.5)*3,vy:(Math.random()-0.5)*3,life:30, type:'normal'});
-}
-function createEmote(x,y,text){
-    state.particles.push({x,y,c: text==='!!'?'#00ff00':'#ff007f', vx:0,vy:-0.5,life:60, type:'emote', text: text});
-}
-
-function showPuckMessage() {
-    let msg = puckMessages[Math.floor(Math.random() * puckMessages.length)];
-    puckText.innerText = msg;
-    
-    let px = rand(100, canvas.width - 350);
-    let py = rand(100, canvas.height - 200);
-    
-    puckBox.style.left = px + 'px';
-    puckBox.style.top = py + 'px';
-    puckBox.style.display = 'block';
-
-    setTimeout(() => {
-        puckBox.style.display = 'none';
-    }, 5000);
-}
-
-function drawPieChart() {
-    let radius = 20;
-    let cx = canvas.width - 250; 
-    let cy = 60; 
-    
-    let total = state.stats.nightmare + state.stats.sweet + state.stats.neutral;
-    if(total === 0) total = 1;
-
-    let angles = {
-        n: (state.stats.nightmare / total) * Math.PI * 2,
-        s: (state.stats.sweet / total) * Math.PI * 2,
-        net: (state.stats.neutral / total) * Math.PI * 2
-    };
-
-    ctx.save(); ctx.translate(cx, cy);
-    if (!state.isDay) {
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = state.dominance === 'NIGHTMARE' ? '#00ff00' : (state.dominance === 'SWEET' ? '#ff69b4' : '#fff');
-    }
-    let current = -Math.PI/2;
-    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0, radius, current, current + angles.net); ctx.fillStyle = '#bdc3c7'; ctx.fill();
-    current += angles.net;
-    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0, radius, current, current + angles.n); ctx.fillStyle = '#00ff00'; ctx.fill();
-    current += angles.n;
-    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0, radius, current, current + angles.s); ctx.fillStyle = '#ff69b4'; ctx.fill();
-    
-    ctx.beginPath(); ctx.arc(0,0, radius, 0, Math.PI*2); ctx.strokeStyle = '#fff'; ctx.lineWidth=2; ctx.stroke();
-    ctx.restore();
-}
-
-function updateStats() {
-    let n=0, s=0, neu=0;
-    state.items.forEach(i => { if(i.qualityType===1) n++; else if(i.qualityType===2) s++; else neu++; });
-    state.stats = {nightmare:n, sweet:s, neutral:neu};
-    
-    if(n > s && n > neu) state.dominance = 'NIGHTMARE';
-    else if(s > n && s > neu) state.dominance = 'SWEET';
-    else state.dominance = 'NEUTRAL';
-}
-
-function drawMonitorScreen() {
-    let zone = CONFIG.zones.monitor;
-    let item = state.monitor.activeItem;
-    ctx.save();
-    ctx.beginPath(); ctx.rect(zone.x+5, zone.y+5, zone.w-10, zone.h-10); ctx.clip();
-    if (!item) {
-        ctx.fillStyle = '#000'; ctx.fillRect(zone.x, zone.y, zone.w, zone.h);
-        ctx.fillStyle = 'rgba(0,255,0,0.1)'; 
-        if(Math.random()<0.3) ctx.fillRect(zone.x, zone.y+rand(0, zone.h), zone.w, 2);
-    } 
-    else {
-        let baseColor = item.ingredients[0] || item.color; 
-        let grad = ctx.createLinearGradient(zone.x, zone.y, zone.x, zone.y + zone.h);
-        let offset = Math.sin(state.frame * 0.05) * 0.5 + 0.5; 
-        grad.addColorStop(0, baseColor); grad.addColorStop(offset, '#ffffff'); grad.addColorStop(1, baseColor);
-        ctx.fillStyle = grad; ctx.fillRect(zone.x, zone.y, zone.w, zone.h);
-        ctx.fillStyle = '#fff'; ctx.font = '10px Courier New'; ctx.fillText("ANALYZING...", zone.x + 10, zone.y + zone.h - 10);
-    }
-    ctx.restore();
-}
-
-function drawBG() {
-    let bgColor = state.isDay ? CONFIG.colors.dayBG : CONFIG.colors.nightBG;
-    
-    if(!state.isDay) {
-        if(state.dominance === 'NIGHTMARE') {
-            bgColor = '#0a1a0a'; 
-            if(Math.random() < 0.1) ctx.translate(rand(-3,3), rand(-3,3)); 
-        } else if (state.dominance === 'SWEET') {
-            bgColor = '#1a0515'; 
-            if(Math.random() < 0.2) createParticle(rand(0,canvas.width), rand(0,canvas.height), '#ffd700', 1); 
-        }
-    }
-    
-    ctx.fillStyle = bgColor; ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.setTransform(1,0,0,1,0,0);
-
-    if (!state.isDay) {
-        ctx.fillStyle = '#fff';
-        state.stars.forEach(s => {
-            if(Math.random()<0.95) ctx.globalAlpha = rand(0.3, 1);
-            ctx.fillRect(s.x, s.y, s.size, s.size);
+    function animateMailbox() {
+        if (myMsgModal.style.display === 'none' || currentViewMode !== 'scene') return; 
+        mbCtx.clearRect(0, 0, mbCanvas.width, mbCanvas.height);
+        const time = Date.now() * 0.0005;
+        const g = mbCtx.createLinearGradient(0, 0, 0, mbCanvas.height);
+        g.addColorStop(0, '#0f172a'); g.addColorStop(1, '#312e81'); 
+        mbCtx.fillStyle = g; mbCtx.fillRect(0,0, mbCanvas.width, mbCanvas.height);
+        mbCtx.save(); mbCtx.globalCompositeOperation = 'screen';
+        const lightX = mbCanvas.width/2 + Math.sin(time) * 100;
+        const lg = mbCtx.createRadialGradient(lightX, mbCanvas.height, 10, lightX, mbCanvas.height, 200);
+        lg.addColorStop(0, 'rgba(56, 189, 248, 0.3)'); lg.addColorStop(1, 'rgba(56, 189, 248, 0)');
+        mbCtx.fillStyle = lg; mbCtx.fillRect(0,0, mbCanvas.width, mbCanvas.height); mbCtx.restore();
+        mbSnowflakes.forEach(s => { s.update(mbCanvas.width, mbCanvas.height); s.draw(mbCtx); });
+        let hoveredDancer = null;
+        mbDancers.forEach(d => {
+            d.update(mbCanvas.width, mbCanvas.height);
+            const dx = mbMouse.x - d.x; const dy = mbMouse.y - d.y;
+            if (Math.sqrt(dx*dx + dy*dy) < 30) hoveredDancer = d;
+            d.isHovered = false; 
         });
-        ctx.globalAlpha = 1;
+        if (hoveredDancer) hoveredDancer.isHovered = true;
+        mbDancers.sort((a, b) => a.y - b.y);
+        mbDancers.forEach(d => { if (d !== hoveredDancer) d.draw(mbCtx); });
+        if (hoveredDancer) hoveredDancer.draw(mbCtx);
+        mbAnimationId = requestAnimationFrame(animateMailbox);
     }
 
-    if (state.isDay) {
-        titleElem.className = 'title-day';
-        factoryDesc.style.color = '#636363'; 
-        lyricsContainer.style.color = '#636363'; 
-        nightDisclaimer.style.display = 'none';
-        timeMarker.innerText = '🌞';
-    } else {
-        titleElem.className = 'title-night';
-        factoryDesc.style.color = '#eee'; 
-        lyricsContainer.style.color = '#fff'; 
-        nightDisclaimer.style.display = 'block';
-        timeMarker.innerText = '🌜';
+    async function checkMyMessages() {
+        const myName = myNameInput.value.trim();
+        if (!myName) return alert("본인의 이름을 입력해주세요.");
+        mbPlaceholder.style.display = 'block'; mbPlaceholder.innerHTML = '✨ 우편함 파티장 입장 중... ✨';
+        mbListContainer.innerHTML = '<div class="empty-msg">로딩 중...</div>';
+        mbDancers = []; mbSnowflakes = [];
+        resizeMailboxCanvas();
+        for(let i=0; i<50; i++) mbSnowflakes.push(new Snowflake(mbCanvas.width, mbCanvas.height));
+        try {
+            const response = await fetch(GOOGLE_SCRIPT_URL); const data = await response.json(); 
+            if (!data || data.length === 0) { 
+                const emptyText = '아직 도착한 편지가 없어요 😢';
+                mbPlaceholder.innerHTML = emptyText; mbListContainer.innerHTML = `<div class="empty-msg">${emptyText}</div>`; return; 
+            }
+            const myMessages = data.filter(row => row[1] === 'ALL' || row[1].replace(/\s/g, '') === myName.replace(/\s/g, ''));
+            if (myMessages.length === 0) {
+                const emptyText = `'${myName}'님과 모두에게 도착한<br>메시지가 아직 없네요. 텅~`;
+                mbPlaceholder.innerHTML = emptyText; mbListContainer.innerHTML = `<div class="empty-msg">${emptyText}</div>`; return;
+            }
+            mbListContainer.innerHTML = '';
+            myMessages.forEach(row => {
+                const dateRaw = new Date(row[0]); const dateStr = (dateRaw.getMonth()+1) + '/' + dateRaw.getDate() + ' ' + dateRaw.getHours() + ':' + String(dateRaw.getMinutes()).padStart(2,'0');
+                const div = document.createElement('div'); div.className = 'list-item';
+                let displayMsg = row[2] || "";
+                let prefix = (row[1] === 'ALL') ? '<span style="color:#00e676; font-size:0.8rem; margin-right:5px; font-weight:bold;">[전체]</span>' : '<span style="color:#ec4899; font-size:0.8rem; margin-right:5px; font-weight:bold;">[나에게]</span>';
+                div.innerHTML = `<div class="list-date">${dateStr}</div><div>${prefix}<span class="list-text" style="font-weight:bold;">${displayMsg}</span></div>`;
+                mbListContainer.appendChild(div);
+            });
+            mbPlaceholder.style.display = 'none'; 
+            const displayMessages = myMessages.slice(0, 10); 
+            displayMessages.forEach(row => {
+                const isPrivate = (row[1] !== 'ALL');
+                let text = row[2] || "";
+                let styleJson = row[3];
+                let style = { hair: 0, shirt: 0, acc: 0 };
+                if (styleJson) { try { style = JSON.parse(styleJson); } catch(e) {} }
+                mbDancers.push(new PartyFairy({ name: row[1], text: text, style: style }, isPrivate, mbCanvas.width, mbCanvas.height));
+            });
+            if (currentViewMode === 'scene') { if (mbAnimationId) cancelAnimationFrame(mbAnimationId); animateMailbox(); }
+        } catch (error) { 
+            mbPlaceholder.innerHTML = '입장 실패! 다시 시도해주세요.'; mbListContainer.innerHTML = '<div class="empty-msg">오류가 발생했습니다.</div>';
+        }
     }
-    
-    let totalCycle = CONFIG.dayLength * 2;
-    let currentProgress = state.isDay ? state.dayTimer : CONFIG.dayLength + state.dayTimer;
-    let progressPercent = (currentProgress / totalCycle) * 100;
-    timeMarker.style.left = `${progressPercent}%`;
 
-
-    ctx.fillStyle='#333'; ctx.fillRect(CONFIG.zones.office.x,CONFIG.zones.office.y,CONFIG.zones.office.w,CONFIG.zones.office.h);
-    ctx.fillStyle='#2c3e50'; ctx.fillRect(CONFIG.zones.ceo.x,CONFIG.zones.ceo.y,CONFIG.zones.ceo.w,CONFIG.zones.ceo.h);
-    let f = CONFIG.zones.funnel;
-    ctx.fillStyle = CONFIG.colors.funnels;
-    ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x+f.w, f.y); ctx.lineTo(f.x+f.w/2+10, f.y+f.h); ctx.lineTo(f.x+f.w/2-10, f.y+f.h); ctx.fill();
-    ctx.fillStyle=CONFIG.colors.belt; ctx.fillRect(CONFIG.zones.belt.x,CONFIG.zones.belt.y,CONFIG.zones.belt.w,CONFIG.zones.belt.h);
-    ctx.fillStyle='#555'; ctx.fillRect(CONFIG.zones.raw.x,CONFIG.zones.raw.y,CONFIG.zones.raw.w,CONFIG.zones.raw.h);
-    let t = CONFIG.zones.trash;
-    ctx.fillStyle = '#333'; ctx.fillRect(t.x, t.y, t.w, t.h); 
-    ctx.font = "12px sans-serif"; ctx.fillStyle='#fff'; ctx.fillText("TRASH", t.x+10, t.y+30);
-    ctx.fillStyle=CONFIG.colors.decoTable; ctx.fillRect(CONFIG.zones.decoTable.x,CONFIG.zones.decoTable.y,CONFIG.zones.decoTable.w,CONFIG.zones.decoTable.h);
-    let mq = CONFIG.zones.monitorQueue;
-    ctx.fillStyle = '#7f8c8d'; ctx.fillRect(mq.x, mq.y, mq.w, mq.h);
-    ctx.fillStyle='#34495e'; ctx.fillRect(CONFIG.zones.monitorPad.x, CONFIG.zones.monitorPad.y, CONFIG.zones.monitorPad.w, CONFIG.zones.monitorPad.h);
-    ctx.fillStyle = '#2d3436'; ctx.fillRect(CONFIG.zones.monitor.x, CONFIG.zones.monitor.y, CONFIG.zones.monitor.w, CONFIG.zones.monitor.h);
-    drawMonitorScreen();
-    let bookZone = CONFIG.zones.finish;
-    ctx.fillStyle = '#5d4037'; ctx.fillRect(bookZone.x, bookZone.y, bookZone.w, bookZone.h);
-    ctx.fillStyle = '#3e2723';
-    for(let i=0; i<6; i++) { let sy = bookZone.y + (bookZone.h/5) * i; ctx.fillRect(bookZone.x, sy, bookZone.w, 5); }
-
-    drawPieChart(); 
-}
-
-canvas.addEventListener('mousedown', (e) => {
-    let rect = canvas.getBoundingClientRect();
-    let mx = e.clientX - rect.left;
-    let my = e.clientY - rect.top;
-    
-    if(!state.isDay) {
-        state.pucks.forEach(p => {
-            if(dist(mx, my, p.x, p.y) < 30) p.hit();
+    sendBtn.addEventListener('click', sendMessage);
+    msgInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
+    closeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-target');
+            document.getElementById(targetId).style.display = 'none'; overlay.style.display = 'none';
+            if (targetId === 'my-msg-modal') { if (mbAnimationId) cancelAnimationFrame(mbAnimationId); }
         });
-    }
-
-    state.items.forEach(i => {
-        if(dist(mx, my, i.x, i.y) < 30) {
-            i.toggleQuality();
-        }
     });
-});
+    function hideAllModals() {
+        myMsgModal.style.display = 'none'; overlay.style.display = 'none';
+        if (mbAnimationId) cancelAnimationFrame(mbAnimationId);
+    }
+    overlay.addEventListener('click', hideAllModals);
+    
+    window.openMyMsgModal = () => {
+        myMsgModal.style.display = 'flex'; overlay.style.display = 'block'; 
+        setMailboxTab('MY');
+        myNameInput.focus();
+        mbPlaceholder.style.display = 'block'; mbPlaceholder.innerHTML = '이름을 입력하고 확인을 눌러주세요.';
+        mbListContainer.innerHTML = ''; mbCtx.clearRect(0,0, mbCanvas.width, mbCanvas.height);
+        resizeMailboxCanvas(); mbSnowflakes = []; for(let i=0; i<30; i++) mbSnowflakes.push(new Snowflake(mbCanvas.width, mbCanvas.height));
+        if (mbAnimationId) cancelAnimationFrame(mbAnimationId);
+        function waitLoop() {
+            if (myMsgModal.style.display === 'none' || mbDancers.length > 0 || currentViewMode !== 'scene' || currentMailboxTab !== 'MY') return;
+            mbCtx.fillStyle = '#0f172a'; mbCtx.fillRect(0,0, mbCanvas.width, mbCanvas.height);
+            mbSnowflakes.forEach(s => { s.update(mbCanvas.width, mbCanvas.height); s.draw(mbCtx); });
+            mbAnimationId = requestAnimationFrame(waitLoop);
+        }
+        waitLoop();
+    };
+    window.addEventListener('resize', () => { if (myMsgModal.style.display === 'flex') { resizeMailboxCanvas(); } }); 
 
-// [FIXED] 밤 종료 처리
-function finishNight() {
-    // 중립(Neutral): 엔딩 없이 즉시 다음 날로
-    if(state.dominance === 'NEUTRAL') {
-        resetGameToDay();
-    } 
-    // 악몽/길몽: 엔딩화면 5초 후 다음 날로
-    else {
-        state.phase = 'ENDING';
-        endingOverlay.style.display = 'flex';
-        
-        if(state.dominance === 'NIGHTMARE') {
-            endingOverlay.className = 'end-nightmare';
-            endTitle.innerText = "SYSTEM ERROR";
-            endDesc.innerText = "Puck has corrupted the world.\nNightmares are everywhere.";
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Config
+    const CONFIG = { 
+        text: 'dotmill', font: '900 120px "Pretendard", Arial', pixelSize: 5, 
+        builderCount: 15, engineerCount: 3, officeCount: 50, 
+        colors: ['#0ea5e9', '#334155', '#475569', '#1e293b'], 
+        dropInterval: 300, beltSpeed: 2 
+    };
+
+    let particles=[], fairies=[], beltOffset=0, lastDropTime=0, mouseX=0, mouseY=0, hoveredFairy=null;
+    let monitorHueOffset = 0, isLogoComplete = false;
+    let zones={ hopper:{x:0,y:0}, beltStart:{x:0,y:0}, beltEnd:{x:0,y:0}, storage:{x:0,y:0}, office:{x:0,y:0,w:0,h:0} };
+
+    let vacationCounter = 0;
+    let isSantaMode = false;
+    let santaTimer = null;
+    let speedLevel = 1; 
+    const BASE_SPEED_FACTOR = 0.7; 
+    let GAME_SPEED = speedLevel * BASE_SPEED_FACTOR; 
+    let isGamePaused = false;
+    let clickCount = 0;
+    let clickTimer = null;
+    let mainSnowflakes = [];
+    let santaObj = { x: -200, y: 100, active: false };
+
+    window.togglePause = () => {
+        isGamePaused = !isGamePaused;
+        const btn = document.getElementById('btn-pause');
+        btn.innerText = isGamePaused ? '▶' : '⏸';
+    };
+
+    window.toggleSpeed = () => {
+        if (speedLevel === 1) speedLevel = 2;
+        else if (speedLevel === 2) speedLevel = 4;
+        else if (speedLevel === 4) speedLevel = 8;
+        else speedLevel = 1;
+        GAME_SPEED = speedLevel * BASE_SPEED_FACTOR;
+        document.getElementById('btn-speed').innerText = speedLevel + 'x';
+    };
+
+    let isHelpOpen = false;
+    window.toggleHelp = () => {
+        isHelpOpen = !isHelpOpen;
+        const btn = document.getElementById('btn-help');
+        const popup = document.getElementById('help-popup');
+        if (isHelpOpen) { btn.classList.add('active'); popup.style.display = 'block'; } 
+        else { btn.classList.remove('active'); popup.style.display = 'none'; }
+    };
+
+    window.handleGuideClick = () => {
+        const guideText = document.getElementById('guide-text');
+        guideText.classList.remove('shake');
+        void guideText.offsetWidth; guideText.classList.add('shake');
+        clickCount++;
+        if (clickTimer) clearTimeout(clickTimer);
+        clickTimer = setTimeout(() => { clickCount = 0; }, 1000);
+        if (clickCount >= 10) { clickCount = 0; triggerDotPour(); }
+    };
+
+    function triggerDotPour() {
+        const guideText = document.getElementById('guide-text');
+        const rect = guideText.getBoundingClientRect();
+        const startX = rect.left + rect.width / 2;
+        const startY = rect.bottom; 
+        for(let i=0; i<10; i++) {
+            let targetP = null;
+            if (particles.length > 0) { targetP = particles[Math.floor(Math.random() * particles.length)]; }
+            const p = new Particle(0, 0, CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)]);
+            p.x = startX + (Math.random() - 0.5) * 50; p.y = startY; p.state = 'FALLING_FROM_TEXT';
+            if (targetP) { p.targetX = targetP.targetX; p.targetY = targetP.targetY; } 
+            else { p.targetX = canvas.width/2 + (Math.random()-0.5)*100; p.targetY = canvas.height/2 + (Math.random()-0.5)*50; }
+            particles.push(p);
+        }
+    }
+    
+    window.resetSimulation = () => {
+        particles.forEach(p => { 
+            if (p.state === 'PLACED' || p.state === 'ON_BELT' || p.state === 'IN_STORAGE' || p.state === 'CARRIED' || p.state === 'DELIVERING' || p.state === 'FALLING' || p.state === 'FALLING_FROM_TEXT') {
+                p.reset(); 
+            }
+        });
+        fairies.forEach(f => { 
+            if(!f.isPaused) { 
+                if(f.targetItem) { f.targetItem.reset(); f.targetItem = null; } 
+                if (f.busyState === 'SWEEPING' || f.busyState === 'MOVING_TO_SWEEP') { f.busyState = 'NONE'; }
+                f.state = 'IDLE'; 
+            } 
+        });
+        isLogoComplete = false; mainSnowflakes = []; santaObj.active = false;
+        playSound('reset');
+    };
+
+    function triggerSantaMode() {
+        isSantaMode = true;
+        if(santaTimer) clearTimeout(santaTimer);
+        santaTimer = setTimeout(() => { isSantaMode = false; }, 7000); 
+    }
+
+    class MainSnowflake {
+        constructor(w, h) {
+            this.x = Math.random() * w; this.y = Math.random() * h;
+            this.size = Math.random() * 3 + 1; this.speed = Math.random() * 2 + 1;
+            this.opacity = Math.random() * 0.7 + 0.3;
+        }
+        update(w, h, speed) {
+            this.y += this.speed * speed; this.x += Math.sin(this.y * 0.02) * 0.5 * speed;
+            if (this.y > h) { this.y = -10; this.x = Math.random() * w; }
+        }
+        draw(ctx) {
+            ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+            ctx.fillRect(this.x, this.y, this.size, this.size); 
+        }
+    }
+
+    function drawPixelSanta(ctx, x, y) {
+        ctx.save(); ctx.translate(x, y); const scale = 3; ctx.scale(scale, scale);
+        ctx.fillStyle = '#8B4513'; ctx.fillRect(0, 5, 8, 5); ctx.fillRect(0, 10, 2, 4); ctx.fillRect(6, 10, 2, 4); ctx.fillRect(6, 3, 3, 3); 
+        ctx.fillStyle = '#D2691E'; ctx.fillRect(7, 1, 1, 2);
+        ctx.fillStyle = 'red'; ctx.fillRect(9, 4, 1, 1);
+        ctx.strokeStyle = '#555'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, 7); ctx.lineTo(-5, 7); ctx.stroke();
+        ctx.fillStyle = '#A52A2A'; ctx.fillRect(-15, 8, 12, 4); ctx.fillRect(-15, 6, 2, 2);
+        ctx.fillStyle = '#FFD700'; ctx.fillRect(-16, 12, 14, 1);
+        ctx.fillStyle = 'red'; ctx.fillRect(-12, 4, 6, 6);
+        ctx.fillStyle = '#fce4d4'; ctx.fillRect(-11, 2, 4, 3);
+        ctx.fillStyle = 'white'; ctx.fillRect(-11, 4, 4, 2);
+        ctx.fillStyle = 'red'; ctx.fillRect(-11, 0, 4, 2);
+        ctx.restore();
+    }
+    
+    function drawStarlightText(ctx, text, x, y) {
+        const tempCanvas = document.createElement('canvas'); const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = 600; tempCanvas.height = 100;
+        tempCtx.font = '900 50px "Pretendard", sans-serif'; tempCtx.fillStyle = '#fff';
+        tempCtx.textAlign = 'center'; tempCtx.textBaseline = 'middle';
+        tempCtx.fillText(text, tempCanvas.width / 2, tempCanvas.height / 2);
+        const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height); const data = imageData.data;
+        ctx.save();
+        const offsetX = x - tempCanvas.width / 2; const offsetY = y - tempCanvas.height / 2; const step = 4; 
+        for (let py = 0; py < tempCanvas.height; py += step) {
+            for (let px = 0; px < tempCanvas.width; px += step) {
+                const index = (py * tempCanvas.width + px) * 4;
+                if (data[index + 3] > 128) { 
+                    const twinkle = Math.random() > 0.8 ? 1.5 : 1; const size = Math.random() * 2 * twinkle;
+                    const colors = ['#ffffff', '#fffacd', '#ffd700', '#c0c0c0'];
+                    ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+                    ctx.beginPath(); ctx.arc(offsetX + px, offsetY + py, size, 0, Math.PI * 2); ctx.fill();
+                }
+            }
+        }
+        ctx.restore();
+    }
+
+    class Particle {
+        constructor(tx,ty,c){
+            this.targetX=tx; this.targetY=ty; this.baseColor=c;
+            this.x=zones.hopper.x+(Math.random()-0.5)*40; this.y=zones.hopper.y-20;
+            this.state='WAITING'; this.carrier=null;
+            const rand = Math.random();
+            if (rand < 0.85) { this.treeColor = '#22c55e'; } else if (rand < 0.90) { this.treeColor = '#eab308'; } else if (rand < 0.95) { this.treeColor = '#ef4444'; } else { this.treeColor = '#854d0e'; }
+        }
+        update(){
+            if (isGamePaused) return;
+            if (this.state === 'FALLING_FROM_TEXT') {
+                this.y += 5 * GAME_SPEED; 
+                if (this.y >= zones.storage.y) { this.state = 'IN_STORAGE'; this.y = zones.storage.y + (Math.random()-0.5)*20; }
+                return;
+            }
+            if(this.state==='WAITING')return;
+            if(this.state==='FALLING'){
+                this.y+=4 * GAME_SPEED; 
+                if(this.y>=zones.beltStart.y-10){this.y=zones.beltStart.y-10+Math.random()*5;this.state='ON_BELT';}
+            } else if(this.state==='ON_BELT'){
+                const dx=zones.beltEnd.x-zones.beltStart.x,dy=zones.beltEnd.y-zones.beltStart.y,d=Math.sqrt(dx*dx+dy*dy);
+                this.x+=(dx/d)*CONFIG.beltSpeed * GAME_SPEED; this.y+=(dy/d)*CONFIG.beltSpeed * GAME_SPEED; 
+                if(this.x>=zones.beltEnd.x){this.state='IN_STORAGE';this.x=zones.storage.x+(Math.random()-0.5)*30;this.y=zones.storage.y+(Math.random()-0.5)*20;}
+            } else if(this.state==='RETURNING'){
+                const dx=zones.hopper.x-this.x,dy=zones.hopper.y-this.y;
+                this.x+=dx*0.1 * GAME_SPEED; this.y+=dy*0.1 * GAME_SPEED; 
+                if(Math.abs(dy)<5)this.state='WAITING';
+            }
+        }
+        draw(){
+            if(this.state==='WAITING')return;
+            // [CHANGED] 로고 완성 시 트리 패턴 색상 사용
+            if (typeof isLogoComplete !== 'undefined' && isLogoComplete && this.state === 'PLACED') { ctx.fillStyle = this.treeColor; } else { ctx.fillStyle = this.baseColor; }
+            if(this.state==='PLACED') {
+                // [CHANGED] 로고 완성 시 Glow 효과
+                if(isLogoComplete) {
+                     ctx.shadowColor = this.treeColor; ctx.shadowBlur = 10;
+                } else { ctx.shadowBlur = 0; }
+                ctx.fillRect(this.x,this.y,CONFIG.pixelSize,CONFIG.pixelSize);
+                ctx.shadowBlur = 0; // reset
+            } else {
+                ctx.beginPath(); ctx.arc(this.x,this.y,CONFIG.pixelSize/2+1,0,Math.PI*2); ctx.fill();
+            }
+        }
+        reset(){this.state='RETURNING';this.carrier=null;}
+    }
+
+    class Fairy {
+        constructor(role, idx) {
+            this.role = role; this.x = canvas.width/2; this.y = canvas.height/2; this.targetItem = null; this.state = 'IDLE';
+            this.colorShirt = ['#a3d2ca', '#ffc3a0', '#fff'][Math.floor(Math.random()*3)]; this.animFrame = Math.random()*100;
+            this.isPaused=false; this.pauseTimer=null; this.busyState='NONE'; this.busyTimer=Math.random()*500;
+            this.busyTargetX=0; this.busyTargetY=0; this.seatX=0; this.seatY=0;
+            this.assignedMessage = null; this.assignmentTime = 0; 
+            this.customStyle = null; 
+            if(role==='ENGINEER'){this.x=zones.beltStart.x+(zones.beltEnd.x-zones.beltStart.x)*0.5;this.y=zones.beltStart.y+30;}
+            else if(role==='OFFICE'){ const c=Math.ceil(CONFIG.officeCount/2),r=Math.floor(idx/c),cl=idx%c,dw=60,dh=60,tw=c*dw,sx=(canvas.width-tw)/2+30,sy=zones.office.y+50; this.seatX=sx+cl*dw;this.seatY=sy+r*dh;this.x=this.seatX;this.y=this.seatY;this.busyState='TYPING';} 
+            else if(role==='FOREMAN'){ this.x = canvas.width/2 - 250; this.y = canvas.height/2 - 20; }
+        }
+        giveVacation() { 
+            this.isPaused=true; playSound('rest'); 
+            if(this.pauseTimer)clearTimeout(this.pauseTimer); 
+            this.pauseTimer=setTimeout(()=>{this.isPaused=false;},5000); 
+            vacationCounter++; if(vacationCounter >= 5) { triggerSantaMode(); vacationCounter = 0; }
+        }
+        update() { 
+            if(this.isPaused) return; 
+            if (!isGamePaused) {
+                this.animFrame += 0.1 * GAME_SPEED; 
+                if (isLogoComplete && this.role === 'BUILDER') { this.updateSweeper(); } 
+                else { if(this.role==='BUILDER') this.updateBuilder(); else if(this.role==='OFFICE') this.updateOffice(); }
+            }
+        }
+        updateSweeper() {
+             if (this.busyState !== 'SWEEPING' && this.busyState !== 'MOVING_TO_SWEEP') {
+                 this.busyState = 'MOVING_TO_SWEEP';
+                 this.busyTargetX = canvas.width * 0.1 + Math.random() * canvas.width * 0.8;
+                 this.busyTargetY = canvas.height * 0.5 + Math.random() * canvas.height * 0.4;
+             }
+             if (this.busyState === 'MOVING_TO_SWEEP') {
+                 if(this.moveTo(this.busyTargetX, this.busyTargetY)) { this.busyState = 'SWEEPING'; this.busyTimer = 100 + Math.random() * 100; }
+             } else if (this.busyState === 'SWEEPING') {
+                 this.busyTimer -= 1 * GAME_SPEED;
+                 if (this.busyTimer <= 0) {
+                     this.busyState = 'MOVING_TO_SWEEP';
+                     this.busyTargetX = canvas.width * 0.1 + Math.random() * canvas.width * 0.8;
+                     this.busyTargetY = canvas.height * 0.5 + Math.random() * canvas.height * 0.4;
+                 }
+             }
+        }
+        updateOffice(){
+            if(this.busyState==='TYPING'){
+                this.busyTimer -= 1 * GAME_SPEED; 
+                if(this.busyTimer<=0){ if(Math.random()<0.05){this.busyState='PATROL';this.busyTargetX=zones.office.x+Math.random()*zones.office.w;this.busyTargetY=zones.office.y+Math.random()*zones.office.h;} else{this.busyTimer=200+Math.random()*400;} }
+            } else if(this.busyState==='PATROL'){
+                if(this.moveTo(this.busyTargetX,this.busyTargetY)){ this.busyState='WAITING_TO_RETURN';this.busyTimer=50+Math.random()*100; }
+            } else if(this.busyState==='WAITING_TO_RETURN'){
+                this.busyTimer -= 1 * GAME_SPEED; if(this.busyTimer<=0)this.busyState='RETURN';
+            } else if(this.busyState==='RETURN'){
+                if(this.moveTo(this.seatX,this.seatY)){ this.busyState='TYPING';this.busyTimer=300+Math.random()*500; }
+            }
+        }
+        updateBuilder(){
+            if(!this.targetItem){
+                const job=particles.find(p=>p.state==='IN_STORAGE'&&!p.carrier);
+                if(job){ this.busyState='NONE';this.targetItem=job;job.carrier=this;this.state='MOVING_TO_STORAGE'; } else { this.performBusyAction(); }
+            } else {
+                if(this.targetItem.state==='RETURNING'){this.targetItem=null;this.state='IDLE';return;}
+                if(this.state==='MOVING_TO_STORAGE'){if(this.moveTo(this.targetItem.x,this.targetItem.y)){this.targetItem.state='CARRIED';this.state='DELIVERING';}}
+                else if(this.state==='DELIVERING'){this.targetItem.x=this.x;this.targetItem.y=this.y-12;if(this.moveTo(this.targetItem.targetX,this.targetItem.targetY)){this.targetItem.state='PLACED';this.targetItem.x=this.targetItem.targetX;this.targetItem.y=this.targetItem.targetY;this.targetItem.carrier=null;this.targetItem=null;this.state='IDLE';}}
+            }
+        }
+        performBusyAction(){
+            if(this.busyTimer<=0){
+                const r=Math.random();
+                if(r<0.5){this.busyState='PATROL';this.busyTargetX=canvas.width/2+(Math.random()-0.5)*400;this.busyTargetY=canvas.height/2+(Math.random()-0.5)*150;}
+                else if(r<0.8)this.busyState='CLEAN'; else this.busyState='HAMMER';
+                this.busyTimer=60+Math.random()*120;
+            }
+            this.busyTimer -= 1 * GAME_SPEED; 
+            if(this.busyState==='PATROL')this.moveTo(this.busyTargetX,this.busyTargetY);
+            else if(this.busyState==='CLEAN')this.x+=Math.sin(Date.now()*0.02 * GAME_SPEED)*0.5 * GAME_SPEED;
+            else if(this.busyState==='HAMMER'){if(Math.abs(this.x-canvas.width/2)>300)this.moveTo(canvas.width/2,canvas.height/2);}
+        }
+        moveTo(tx,ty){
+            const dx=tx-this.x,dy=ty-this.y,d=Math.sqrt(dx*dx+dy*dy);
+            const baseSpeed = this.role==='OFFICE'?1.5:4;
+            const moveStep = baseSpeed * GAME_SPEED; 
+            if(d < moveStep || d < 4){this.x=tx;this.y=ty;return true;}
+            this.x+=(dx/d)*moveStep; this.y+=(dy/d)*moveStep; return false;
+        }
+        drawBroom(ctx) {
+            ctx.save();
+            const angle = Math.sin(Date.now() * 0.01 * GAME_SPEED) * 0.5;
+            ctx.rotate(angle);
+            ctx.fillStyle = '#8d6e63'; ctx.fillRect(4, -5, 2, 20);
+            ctx.fillStyle = '#fbc02d'; ctx.beginPath(); ctx.moveTo(3, 15); ctx.lineTo(7, 15); ctx.lineTo(9, 22); ctx.lineTo(1, 22); ctx.fill();
+            ctx.restore();
+        }
+        draw() {
+            ctx.save(); ctx.translate(this.x, this.y);
+            let shirtColor = this.colorShirt;
+            if (this.customStyle) { shirtColor = CUSTOM_SHIRT_COLORS[this.customStyle.shirt] || CUSTOM_SHIRT_COLORS[0]; }
+            let indicatorColor = null;
+            if (this.isPaused) { ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 20; } 
+            else if (this.assignedMessage) {
+                const timeDiff = Date.now() - this.assignmentTime;
+                if (timeDiff < 2000) { ctx.shadowColor = '#00e676'; ctx.shadowBlur = 25; indicatorColor = '#00e676'; } 
+                else { indicatorColor = '#2979ff'; ctx.shadowBlur = 0; }
+            } else { ctx.shadowBlur = 0; }
+            
+            const sway = isGamePaused ? 0 : Math.sin(Date.now()*0.05 * GAME_SPEED);
+            if(!this.isPaused && (this.busyState==='HAMMER'||(this.role==='OFFICE'&&this.busyState==='TYPING') || this.busyState==='SWEEPING')) ctx.translate(0, sway);
+            if (indicatorColor) { ctx.fillStyle = indicatorColor; ctx.beginPath(); ctx.arc(0, -18, 3.5, 0, Math.PI*2); ctx.fill(); }
+            const w=12,h=20; 
+            ctx.fillStyle='#333';ctx.fillRect(-w/2,0,w,h/2); // Pants
+            ctx.fillStyle=shirtColor;ctx.fillRect(-w/2,-h/2,w,h/2); // Shirt
+            ctx.fillStyle='#fce4d4';ctx.fillRect(-w/2+2,-h/2-6,8,8); // Face
+
+            if (this.customStyle) {
+                ctx.save(); ctx.translate(0, 8); 
+                ctx.fillStyle = '#4a3b2a'; const hr = this.customStyle.hair;
+                if (hr === 0) { ctx.fillRect(-7, -26, 14, 4); ctx.beginPath(); ctx.moveTo(-7, -24); ctx.lineTo(7, -24); ctx.quadraticCurveTo(8, -24, 8, -20); ctx.lineTo(-8, -20); ctx.quadraticCurveTo(-8, -24, -7, -24); ctx.fill(); } 
+                else if (hr === 1) { ctx.beginPath(); ctx.arc(0, -25, 8, Math.PI, 0); ctx.arc(-6, -23, 4, 0, Math.PI*2); ctx.arc(6, -23, 4, 0, Math.PI*2); ctx.arc(0, -28, 4, 0, Math.PI*2); ctx.fill(); } 
+                else if (hr === 2) { ctx.fillRect(-7, -26, 14, 4); ctx.beginPath(); ctx.arc(0, -28, 3.5, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.moveTo(0, -28); ctx.quadraticCurveTo(5, -32, 6, -26); ctx.stroke(); } 
+                else { ctx.fillRect(-8, -26, 16, 6); ctx.fillRect(-9, -22, 4, 12); ctx.fillRect(5, -22, 4, 12); }
+
+                const ac = this.customStyle.acc;
+                if (ac === 1) { ctx.strokeStyle = '#8B4513'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-3, -25); ctx.lineTo(-8, -32); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-6, -29); ctx.lineTo(-4, -33); ctx.stroke(); ctx.beginPath(); ctx.moveTo(3, -25); ctx.lineTo(8, -32); ctx.stroke(); ctx.beginPath(); ctx.moveTo(6, -29); ctx.lineTo(4, -33); ctx.stroke(); ctx.fillStyle = 'red'; ctx.beginPath(); ctx.arc(0, -18, 1.5, 0, Math.PI*2); ctx.fill(); } 
+                else if (ac === 2) { ctx.fillStyle = '#ff69b4'; for(let i=0; i<5; i++) { const angle = (i * 2 * Math.PI) / 5; const r = 3; ctx.beginPath(); ctx.arc(6 + Math.cos(angle)*r, -28 + Math.sin(angle)*r, 2, 0, Math.PI*2); ctx.fill(); } ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(6, -28, 2, 0, Math.PI*2); ctx.fill(); }
+                ctx.restore();
+            }
+            if (isSantaMode) {
+                ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.moveTo(-6, -16); ctx.lineTo(0, -26); ctx.lineTo(6, -16); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.fillRect(-7, -16, 14, 3); ctx.beginPath(); ctx.arc(0, -26, 2, 0, Math.PI*2); ctx.fill();
+            }
+            if(this.role==='FOREMAN'){ctx.fillStyle='#ffcc00';ctx.fillRect(-w/2,-h/2-8,w,4);ctx.strokeStyle='red';ctx.beginPath();ctx.moveTo(w/2,-h/2);ctx.lineTo(w/2+10,-h/2-5);ctx.stroke();}
+            else if(this.role==='ENGINEER'){ctx.save();ctx.translate(w/2,0);ctx.rotate(Math.sin(this.animFrame)*0.5);ctx.fillStyle='#888';ctx.fillRect(0,-2,10,4);ctx.restore();}
+            else if(this.role==='OFFICE'){ctx.fillStyle='#333';ctx.fillRect(-w/2+3,-h/2-3,6,2);}
+            else if(this.role==='BUILDER'&&this.state==='DELIVERING'){ctx.fillStyle='#fce4d4';ctx.fillRect(-w/2-2,-h/2,2,6);ctx.fillRect(w/2,-h/2,2,6);}
+            
+            if (this.busyState === 'SWEEPING' || this.busyState === 'MOVING_TO_SWEEP') {
+                this.drawBroom(ctx);
+            } else if (this.role === 'BUILDER' && !this.isPaused) {
+                if (this.busyState === 'CLEAN') {
+                    ctx.save(); ctx.strokeStyle = '#8d6e63'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(4, 5); ctx.lineTo(4 + Math.sin(Date.now()*0.02 * GAME_SPEED)*8, 18); ctx.stroke();
+                    ctx.fillStyle='#d7ccc8'; ctx.beginPath(); ctx.arc(4 + Math.sin(Date.now()*0.02 * GAME_SPEED)*8, 18, 3, 0, Math.PI); ctx.fill(); ctx.restore();
+                } else if (this.busyState === 'HAMMER') {
+                    ctx.save(); ctx.translate(6, 0); ctx.rotate(Math.sin(Date.now() * 0.2 * GAME_SPEED) * 0.8);
+                    ctx.fillStyle = '#5d4037'; ctx.fillRect(0, -10, 2, 12); ctx.fillStyle = '#555'; ctx.fillRect(-3, -12, 8, 4); ctx.restore();
+                }
+            }
+            ctx.restore();
+        }
+        drawBubble() {
+            if (!this.assignedMessage) return;
+            const msg = this.assignedMessage;
+            ctx.save(); ctx.translate(this.x, this.y - 35);
+            ctx.font = 'bold 14px "Pretendard", sans-serif'; const tm = ctx.measureText(msg.text), nm = ctx.measureText(msg.name);
+            const w = Math.min(Math.max(tm.width, nm.width) + 24, 220); 
+            const words = msg.text.split('');
+            let lines = []; let currentLine = words[0];
+            for (let i = 1; i < words.length; i++) {
+                const width = ctx.measureText(currentLine + words[i]).width;
+                if (width < 200) { currentLine += words[i]; } 
+                else { lines.push(currentLine); currentLine = words[i]; }
+            }
+            lines.push(currentLine);
+            const h = lines.length * 18 + 30; 
+            let bubbleX = 0;
+            if (this.x - w/2 < 10) bubbleX = 10 - (this.x - w/2);
+            if (this.x + w/2 > canvas.width - 10) bubbleX = (canvas.width - 10) - (this.x + w/2);
+            ctx.translate(bubbleX, 0);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx.shadowColor = 'rgba(0,0,0,0.2)'; ctx.shadowBlur = 10;
+            ctx.beginPath(); ctx.roundRect(-w/2, -h, w, h, 12); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(-bubbleX, 0); ctx.lineTo(-bubbleX - 6, -6); ctx.lineTo(-bubbleX + 6, -6); ctx.fill();
+            ctx.shadowBlur = 0; ctx.fillStyle = '#334155'; ctx.textAlign = 'center'; 
+            lines.forEach((line, i) => { ctx.fillText(line, 0, -h + 20 + (i * 18)); });
+            ctx.font = '500 12px "Pretendard"'; ctx.fillStyle = '#64748b'; 
+            let displayName = msg.name;
+            if (displayName === 'ALL') { ctx.fillStyle = '#00e676'; displayName = '모두에게'; } else { ctx.fillStyle = '#ec4899'; }
+            ctx.fillText(`To. ${displayName}`, 0, -10);
+            ctx.restore();
+        }
+    }
+
+    function init() {
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        if (canvas.width === 0 || canvas.height === 0) return;
+        zones.hopper = { x: 100, y: 100 }; zones.beltStart = { x: 100, y: 180 }; zones.beltEnd = { x: canvas.width * 0.3, y: canvas.height * 0.6 }; zones.storage = { x: canvas.width * 0.3 + 20, y: canvas.height * 0.6 + 20 }; zones.office = { x: 0, y: canvas.height - 200, w: canvas.width, h: 200 };
+        particles=[]; fairies=[];
+        ctx.font = CONFIG.font; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'white'; ctx.fillText(CONFIG.text, canvas.width / 2, canvas.height / 2);
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height); ctx.clearRect(0,0, canvas.width, canvas.height);
+        for(let y=0; y<data.height; y+=CONFIG.pixelSize) for(let x=0; x<data.width; x+=CONFIG.pixelSize) if(data.data[(y * 4 * data.width) + (x * 4) + 3] > 128) particles.push(new Particle(x, y, CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)]));
+        fairies.push(new Fairy('FOREMAN'));
+        for(let i=0; i<CONFIG.builderCount; i++) fairies.push(new Fairy('BUILDER'));
+        for(let i=0; i<CONFIG.engineerCount; i++) fairies.push(new Fairy('ENGINEER'));
+        for(let i=0; i<CONFIG.officeCount; i++) fairies.push(new Fairy('OFFICE', i));
+    }
+
+    function isVisible(f) { return f.x > 20 && f.x < canvas.width - 20 && f.y > 0 && f.y < canvas.height; }
+
+    window.distributeSingleMessage = (newMsg) => {
+        let target = fairies.find(f => f.assignedMessage === null && isVisible(f));
+        if (!target) {
+            const visibleFairies = fairies.filter(f => isVisible(f));
+            if (visibleFairies.length > 0) { target = visibleFairies[Math.floor(Math.random() * visibleFairies.length)]; } 
+            else { target = fairies[Math.floor(Math.random() * fairies.length)]; }
+        }
+        if (target) { 
+            target.assignedMessage = newMsg; 
+            target.assignmentTime = Date.now();
+            if(newMsg.style) target.customStyle = newMsg.style;
+        }
+    };
+
+    function drawEnvironment() {
+        if (isLogoComplete) {
+            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, '#0f172a'); grad.addColorStop(1, '#1e1b4b');
+            ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        } else { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+        ctx.fillStyle = '#999'; ctx.beginPath(); ctx.moveTo(zones.hopper.x - 30, zones.hopper.y - 50); ctx.lineTo(zones.hopper.x + 30, zones.hopper.y - 50); ctx.lineTo(zones.hopper.x + 10, zones.hopper.y); ctx.lineTo(zones.hopper.x - 10, zones.hopper.y); ctx.fill();
+        ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 40; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(zones.beltStart.x, zones.beltStart.y); ctx.lineTo(zones.beltEnd.x, zones.beltEnd.y); ctx.stroke();
+        if (!isGamePaused) { beltOffset -= CONFIG.beltSpeed * GAME_SPEED; }
+        ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 30; ctx.setLineDash([10, 20]); ctx.lineDashOffset = beltOffset; ctx.beginPath(); ctx.moveTo(zones.beltStart.x, zones.beltStart.y); ctx.lineTo(zones.beltEnd.x, zones.beltEnd.y); ctx.stroke(); ctx.setLineDash([]);
+        ctx.lineWidth = 5; ctx.strokeStyle = '#64748b'; ctx.beginPath(); ctx.moveTo(zones.beltEnd.x, zones.beltEnd.y); ctx.lineTo(zones.beltEnd.x, canvas.height); ctx.moveTo(zones.beltStart.x, zones.beltStart.y); ctx.lineTo(zones.beltStart.x, canvas.height); ctx.stroke();
+        const lx = canvas.width/2 - 250; const ly = canvas.height/2 + 60; ctx.strokeStyle = '#8d6e63'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx, ly - 120); ctx.moveTo(lx + 30, ly); ctx.lineTo(lx + 30, ly - 120); for(let i=0; i<5; i++) { ctx.moveTo(lx, ly - 20 - (i*20)); ctx.lineTo(lx+30, ly - 20 - (i*20)); } ctx.stroke();
+        ctx.fillStyle = '#f8fafc'; ctx.fillRect(zones.office.x, zones.office.y, zones.office.w, zones.office.h); ctx.fillStyle = '#e2e8f0'; ctx.fillRect(zones.office.x, canvas.height - 50, zones.office.w, 50);
+        fairies.forEach((f, i) => {
+            if (f.role === 'OFFICE') {
+                const deskX = f.seatX; const deskY = f.seatY;
+                ctx.fillStyle = '#cbd5e1'; ctx.fillRect(deskX - 25, deskY + 10, 50, 30); ctx.fillStyle = '#475569'; ctx.fillRect(deskX - 15, deskY - 20, 30, 25); 
+                if (isLogoComplete) {
+                     const phase = Date.now() * 0.003;
+                     const b = Math.floor(150 + 105 * (Math.sin(phase) + 1) / 2);
+                     ctx.fillStyle = `rgb(255, 255, ${b})`; ctx.shadowColor = `rgb(255, 255, ${b})`; ctx.shadowBlur = 10; 
+                } else {
+                    const hue = (monitorHueOffset + i * 10) % 360;
+                    ctx.fillStyle = `hsl(${hue}, 70%, 80%)`; ctx.shadowBlur = 0;
+                }
+                ctx.fillRect(deskX - 13, deskY - 18, 26, 20); ctx.shadowBlur = 0;
+            }
+        });
+        ctx.fillStyle = isLogoComplete ? 'rgba(255,255,255,0.5)' : '#94a3b8'; 
+        ctx.font = 'bold 15px "Pretendard", sans-serif'; ctx.textAlign='right'; ctx.fillText('©shimhayeon', canvas.width - 50, canvas.height - 30);
+    }
+    
+    function animate() {
+        if (!isGamePaused) {
+            const now = Date.now(); 
+            if (now - lastDropTime > CONFIG.dropInterval / GAME_SPEED) { 
+                const p = particles.find(p => p.state === 'WAITING'); 
+                if (p) { p.state = 'FALLING'; lastDropTime = now; } 
+            }
+        }
+        const placedCount = particles.filter(p => p.state === 'PLACED').length;
+        if (!isLogoComplete && placedCount > 0 && placedCount === particles.length) {
+            isLogoComplete = true;
+            mainSnowflakes = [];
+            for(let i=0; i<100; i++) mainSnowflakes.push(new MainSnowflake(canvas.width, canvas.height));
+            santaObj.active = true; santaObj.x = -100; santaObj.y = 100;
+        }
+        ctx.clearRect(0, 0, canvas.width, canvas.height); 
+        drawEnvironment(); 
+        if (isLogoComplete) {
+            if (!isGamePaused) { mainSnowflakes.forEach(s => s.update(canvas.width, canvas.height, GAME_SPEED)); }
+            mainSnowflakes.forEach(s => s.draw(ctx));
+            if (santaObj.active) {
+                if (!isGamePaused) santaObj.x += 2 * GAME_SPEED;
+                drawPixelSanta(ctx, santaObj.x, santaObj.y);
+                if (santaObj.x > canvas.width + 100) santaObj.x = -100; 
+            }
+            drawStarlightText(ctx, "Happy New Year!", canvas.width/2, 150);
+        }
+        fairies.forEach(f => { f.update(); f.draw(); }); 
+        if (isLogoComplete) {
+            ctx.save();
+            const phase = Date.now() * 0.003;
+            const b = Math.floor(150 + 105 * (Math.sin(phase) + 1) / 2);
+            ctx.shadowColor = `rgb(255, 255, ${b})`;
+            ctx.shadowBlur = 20 + 10 * Math.sin(phase * 1.5);
+            particles.forEach(p => { p.update(); p.draw(); });
+            ctx.restore();
         } else {
-            endingOverlay.className = 'end-sweet';
-            endTitle.innerText = "SWEET DREAMS";
-            endDesc.innerText = "Titania protected the dreams.\nHave a wonderful night!";
+             particles.forEach(p => { p.update(); p.draw(); });
         }
-        
-        setTimeout(() => {
-            resetGameToDay();
-        }, 5000);
-    }
-}
-
-// [FIXED] 루프 로직: 리턴 전에 requestAnimationFrame 호출 보장
-function loop() {
-    // 1. 엔딩 중일 때
-    if (state.phase === 'ENDING') {
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-        drawBG();
-        state.chars.forEach(c => { c.update(); c.draw(); });
-        requestAnimationFrame(loop);
-        return;
-    }
-
-    // 2. 게임 진행 (낮/밤)
-    state.frame++;
-    state.dayTimer++;
-    
-    // 시간 체크
-    if (state.dayTimer > CONFIG.dayLength) { 
-        if(state.isDay) {
-            // 밤 시작
-            state.isDay = false; 
-            state.dayTimer = 0; 
-            state.pucks.push(new Puck()); 
-        } else {
-            // 밤 종료 -> 엔딩/리셋 호출
-            finishNight();
-            // [중요] 여기서 리턴하더라도 다음 프레임을 요청해야 멈추지 않음!
-            requestAnimationFrame(loop);
-            return; 
+        if (hoveredFairy) { hoveredFairy.drawBubble(); canvas.style.cursor = 'pointer'; } else { canvas.style.cursor = 'default'; }
+        if (!isGamePaused) { monitorHueOffset += (isLogoComplete ? 5 : 1) * GAME_SPEED; }
+        if (!isLogoComplete) { 
+            ctx.save(); ctx.globalAlpha = 0.05; ctx.fillStyle = '#000'; 
+            ctx.font = CONFIG.font; ctx.textAlign='center'; ctx.fillText(CONFIG.text, canvas.width/2, canvas.height/2); 
+            ctx.restore();
         }
+        requestAnimationFrame(animate);
     }
     
-    // 퍽 분신술 (밤 이벤트)
-    if(!state.isDay && state.dayTimer > CONFIG.dayLength * 0.66 && state.pucks.length < 3) {
-        if(state.frame % 60 === 0) {
-            let p = new Puck(); p.x = state.pucks[0].x; p.y = state.pucks[0].y;
-            state.pucks.push(p);
-            createEmote(p.x, p.y, 'CLONE!');
-        }
+    // Initial Load function definition
+    async function loadInitialMessages() {
+        try {
+            const response = await fetch(GOOGLE_SCRIPT_URL);
+            const data = await response.json(); 
+            if (data && data.length > 0) {
+                const recent10 = [...data].reverse().slice(0, 10);
+                const shuffledFairies = [...fairies].sort(() => 0.5 - Math.random());
+                recent10.forEach((row, idx) => {
+                    if (idx < shuffledFairies.length) {
+                        const f = shuffledFairies[idx];
+                        f.assignedMessage = { name: row[1], text: row[2] };
+                        f.assignmentTime = Date.now(); 
+                        let styleJson = row[3];
+                        if (styleJson) { try { f.customStyle = JSON.parse(styleJson); } catch(e) {} }
+                    }
+                });
+            }
+        } catch (e) { console.error("Initial fetch failed:", e); }
     }
 
-    // 퍽 메시지
-    if (state.frame % 1200 === 0) {
-        showPuckMessage();
-    }
+    canvas.addEventListener('touchstart', (e) => {
+        if (e.target.closest('#input-bar') || e.target.closest('#modal-overlay') || e.target.closest('#audio-btn') || e.target.closest('.modal-window')) return;
+        const touch = e.touches[0]; const rect = canvas.getBoundingClientRect(); const tx = touch.clientX - rect.left; const ty = touch.clientY - rect.top;
+        let touchedFairy = false;
+        fairies.forEach(f => {
+            if (Math.abs(tx - f.x) < 40 && Math.abs(ty - f.y) < 50) {
+                touchedFairy = true;
+                if (f.assignedMessage) { hoveredFairy = f; playSound('pop'); setTimeout(() => { hoveredFairy = null; }, 3000); } 
+                else { f.giveVacation(); }
+            }
+        });
+    }, { passive: false });
 
-    updateStats();
+    window.addEventListener('mousedown', (e) => {
+        if (e.target.closest('#input-bar') || e.target.closest('#modal-overlay') || e.target.closest('.modal-window') || e.target.closest('#view-all-btn') || e.target.closest('#audio-btn')) return;
+        const rect = canvas.getBoundingClientRect(); const cx = e.clientX - rect.left; const cy = e.clientY - rect.top;
+        let clickedFairy = false; fairies.forEach(f => { if (Math.sqrt(Math.pow(cx-f.x,2)+Math.pow(cy-f.y,2)) < 30) { f.giveVacation(); clickedFairy = true; } }); 
+    });
 
-    // 그리기
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    drawBG();
-    state.houses.forEach(h=>h.draw());
-    state.pedestrians.forEach(p=> { p.update(); p.draw(); });
-    state.items.forEach(i => { i.update(); i.draw(); });
-    state.chars.sort((a,b)=>a.y - b.y); 
-    state.chars.forEach(c=>{c.update(); c.draw();});
-    
-    if(!state.isDay) state.pucks.forEach(p => { p.update(); p.draw(); });
-    
-    // 파티클
-    state.particles = state.particles.filter(p => p.life > 0);
-    state.particles.forEach(p=>{
-        p.life--;
-        if(p.type === 'emote') { 
-            p.y += p.vy; ctx.fillStyle = p.c; ctx.font = "bold 20px serif"; ctx.fillText(p.text, p.x, p.y); 
-        } 
-        else { 
-            p.x+=p.vx; p.y+=p.vy; ctx.fillStyle=p.c; ctx.globalAlpha=p.life/30; 
-            ctx.fillRect(p.x,p.y,2,2); ctx.globalAlpha=1; 
-        }
+    let prevHoveredFairy = null; 
+    window.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect(); mouseX = e.clientX - rect.left; mouseY = e.clientY - rect.top;
+        let closest = null; let minDist = 30; 
+        fairies.forEach(f => { const dx = mouseX - f.x; const dy = mouseY - f.y; const dist = Math.sqrt(dx*dx + dy*dy); if (dist < minDist) { minDist = dist; closest = f; } }); 
+        hoveredFairy = closest;
+        if (hoveredFairy) { canvas.style.cursor = 'pointer'; } else { canvas.style.cursor = 'default'; }
+        if (closest !== prevHoveredFairy) { if (closest && closest.assignedMessage) { playSound('pop'); } prevHoveredFairy = closest; }
     });
     
-    requestAnimationFrame(loop);
-}
-
-window.addEventListener('resize',init);
-init();
-loop();
+    window.addEventListener('resize', init); 
+    init(); 
+    loadInitialMessages(); 
+    animate();
 </script>
 </body>
 </html>
