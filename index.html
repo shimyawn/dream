@@ -2,14 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dream Factory: Logic Update</title>
-    <!-- Fonts -->
+    <title>Dream Factory: Final Stable Version</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body { margin: 0; overflow: hidden; background-color: #f0f8ff; transition: background-color 4s; font-family: 'Courier New', monospace; }
         canvas { display: block; }
 
-        /* UI Layers */
         #left-ui {
             position: absolute; top: 20px; left: 20px;
             font-family: 'Press Start 2P', cursive;
@@ -30,6 +28,31 @@
         }
         #night-disclaimer { display: none; color: #2ecc71; margin-top: 10px; font-size: 0.9em; }
 
+        /* Controls UI */
+        #controls-top {
+            position: absolute; top: 20px; left: 50%;
+            transform: translateX(-50%);
+            display: flex; gap: 10px;
+            z-index: 20;
+        }
+        .ctrl-btn {
+            background: rgba(0,0,0,0.6); border: 2px solid #fff;
+            color: #fff; padding: 5px 10px;
+            font-family: 'Press Start 2P'; font-size: 12px;
+            cursor: pointer; border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .ctrl-btn:hover { background: #fff; color: #000; }
+        .ctrl-btn.active { background: #f1c40f; color: #000; border-color: #f1c40f; }
+
+        #level-badge {
+            position: absolute; top: 70px; left: 20px;
+            background: #2d3436; color: #f1c40f;
+            padding: 8px 12px; border-radius: 4px;
+            font-family: 'Press Start 2P'; font-size: 12px;
+            border: 2px solid #f1c40f; z-index: 10;
+        }
+
         #time-bar-container {
             position: absolute; top: 30px; right: 250px;
             width: 150px; height: 10px;
@@ -41,7 +64,6 @@
             font-size: 24px; margin-left: -12px; transition: left 0.1s linear;
         }
 
-        /* --- Score Board --- */
         #score-board {
             position: absolute; top: 20px; right: 70px;
             display: flex; flex-direction: column; gap: 5px;
@@ -62,8 +84,9 @@
         #puck-msg-box {
             position: absolute; display: none; padding: 10px 15px;
             background-color: #000; border: 2px solid #00ff00; color: #00ff00;
-            font-family: 'Courier New', monospace; font-weight: bold; font-size: 14px;
-            box-shadow: 5px 5px 0px rgba(0,0,0,0.5); z-index: 100; max-width: 300px; pointer-events: none;
+            font-family: 'Courier New', monospace; font-weight: bold; 
+            font-size: 11px;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.5); z-index: 100; max-width: 300px; pointer-events: none;
         }
         .blink-cursor { animation: blink 1s step-end infinite; }
         @keyframes blink { 50% { opacity: 0; } }
@@ -81,7 +104,6 @@
         #end-title { font-size: 40px; margin-bottom: 20px; text-shadow: 4px 4px 0 #000; }
         #end-desc { font-size: 16px; line-height: 1.6; text-shadow: 2px 2px 0 #000; }
 
-        /* --- Tutorial Styles --- */
         #help-btn {
             position: absolute; top: 20px; right: 20px;
             width: 36px; height: 36px; border-radius: 50%;
@@ -119,19 +141,13 @@
         }
         #tut-text { 
             font-family: 'Noto Sans KR', sans-serif;
-            font-size: 14px; 
-            line-height: 1.5; 
-            color: #eee;
-            margin-bottom: 20px; 
-            min-height: 42px; 
-            font-weight: 400;
-            word-break: keep-all;
+            font-size: 14px; line-height: 1.5; color: #eee;
+            margin-bottom: 20px; min-height: 42px; font-weight: 400; word-break: keep-all;
         }
         .tut-btn {
             background: rgba(255,255,255,0.1); 
             color: #fff; border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 6px;
-            padding: 6px 14px; 
+            border-radius: 6px; padding: 6px 14px; 
             font-family: 'Noto Sans KR', sans-serif; font-size: 12px; font-weight: 700;
             cursor: pointer; margin: 0 4px; transition: all 0.2s;
         }
@@ -150,10 +166,25 @@
             pointer-events: none; z-index: 199; display: none;
         }
         .tut-hidden { display: none !important; }
+        
+        #rage-overlay {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            pointer-events: none; z-index: 5;
+            background: rgba(255, 0, 0, 0);
+            transition: background 0.5s;
+        }
     </style>
 </head>
 <body>
+    <div id="controls-top">
+        <button class="ctrl-btn active" onclick="setSpeed(1)">1X</button>
+        <button class="ctrl-btn" onclick="setSpeed(2)">2X</button>
+        <button class="ctrl-btn" onclick="setSpeed(4)">4X</button>
+        <button class="ctrl-btn" onclick="setSpeed(8)">8X</button>
+    </div>
+
     <div id="left-ui">
+        <div id="level-badge">LV.1</div>
         <h1 id="factory-title" class="title-day">A Midsummer Night's Dream Factory</h1>
         <div id="factory-desc">
             VIP customer, hello. We are a premium dream factory.
@@ -165,7 +196,6 @@
     </div>
     <div id="time-bar-container"><div id="time-marker">🌞</div></div>
     
-    <!-- Score Board -->
     <div id="score-board">
         <div class="score-item score-sweet">SWEET: <span id="s-sweet">0</span></div>
         <div class="score-item score-nightmare">NIGHTMARE: <span id="s-nightmare">0</span></div>
@@ -173,10 +203,8 @@
     </div>
 
     <div id="puck-msg-box"><span id="puck-text"></span><span class="blink-cursor">_</span></div>
-    
     <button id="help-btn">?</button>
 
-    <!-- Tutorial Layer -->
     <div id="tutorial-overlay">
         <div id="tut-highlight"></div>
         <div id="tutorial-box">
@@ -190,9 +218,11 @@
     </div>
 
     <div id="ending-overlay"><h1 id="end-title"></h1><p id="end-desc"></p></div>
+    <div id="rage-overlay"></div>
     <canvas id="canvas"></canvas>
 
 <script>
+// 1. CONSTANTS & CONFIG
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const titleElem = document.getElementById('factory-title');
@@ -203,13 +233,13 @@ const puckText = document.getElementById('puck-text');
 const endingOverlay = document.getElementById('ending-overlay');
 const endTitle = document.getElementById('end-title');
 const endDesc = document.getElementById('end-desc');
+const rageOverlay = document.getElementById('rage-overlay');
+const levelBadge = document.getElementById('level-badge');
 
-// Score Elements
 const scoreElSweet = document.getElementById('s-sweet');
 const scoreElNightmare = document.getElementById('s-nightmare');
 const scoreElNeutral = document.getElementById('s-neutral');
 
-// Tutorial Elements
 const tutOverlay = document.getElementById('tutorial-overlay');
 const tutTitle = document.getElementById('tut-title');
 const tutText = document.getElementById('tut-text');
@@ -218,22 +248,16 @@ const tutSkip = document.getElementById('tut-skip');
 const tutHighlight = document.getElementById('tut-highlight');
 const helpBtn = document.getElementById('help-btn');
 
-// --- Optimization Utils ---
 const rand = (min, max) => Math.random() * (max - min) + min;
 const distSq = (x1, y1, x2, y2) => (x2-x1)**2 + (y2-y1)**2; 
 const dist = (x1, y1, x2, y2) => Math.sqrt(distSq(x1, y1, x2, y2));
 
-// --- Config ---
+// [MODIFIED] Base speed reduced by half for "1X is slower" request
 const CONFIG = {
     dayLength: 2000, 
     charSize: 16,
-    speed: { walk: 1.2, run: 2.2, belt: 0.8, autoMove: 3.0, fly: 5.0 }, 
-    roles: {
-        mover: 5, janitor: 1, 
-        worker: 8, monitorSup: 1, 
-        decorator: 8, deliverer: 6, 
-        office: 6, ceo: 2, puckHuman: 1 
-    },
+    speed: { walk: 0.6, run: 1.1, belt: 0.4, autoMove: 1.5, fly: 2.5 }, 
+    roles: { mover: 5, janitor: 1, worker: 8, monitorSup: 1, decorator: 8, deliverer: 6, office: 6, ceo: 2, puckHuman: 1 },
     colors: {
         memories: ['#ff9ff3', '#feca57', '#ff6b6b', '#48dbfb', '#1dd1a1', '#5f27cd'], 
         roof: ['#e74c3c', '#8e44ad', '#2980b9'],
@@ -244,11 +268,25 @@ const CONFIG = {
     },
     zones: {},
     shelfCapacity: 35,
-    deliveryBonus: 500, // Bonus points for delivery
-    activeItemScore: 10 // Points per item currently on screen
+    deliveryBonus: 500, 
+    activeItemScore: 10,
+    dialogueInterval: { min: 240, max: 600 } 
 };
 
-// --- Puck's Messages ---
+// --- TUTORIAL DATA ---
+const tutorialSteps = [
+    { title: "Raw Material", text: "Dream fragments appear here. Movers collect them to start the process.", zone: 'raw' },
+    { title: "Processing", text: "Fragments are processed into basic shapes here.", zone: 'funnel' },
+    { title: "Assembly", text: "Workers on the belt shape the dreams.", zone: 'belt' },
+    { title: "Decoration", text: "Decorators add final touches and emotions here.", zone: 'decoTable' },
+    { title: "Quality Control", text: "The Monitor checks quality. Watch out for Green Nightmares!", zone: 'monitor' },
+    { title: "Shipping", text: "Finished dreams are stored here before delivery.", zone: 'finish' },
+    { title: "Management", text: "Oberon and Titania manage the factory from here.", zone: 'office' },
+    { title: "Night Time", text: "At night, Puck invades! Click items to save them, click Puck to stun him.", zone: null }
+];
+let currentTutStep = 0;
+// -------------------------------------------
+
 const puckMessages = [
     "Puck's msg: Click on dreams so soft and fair,\nturn them to a green nightmare.",
     "Puck's msg: 😛 (Bleh!)",
@@ -257,172 +295,291 @@ const puckMessages = [
     "Puck's msg: I am Puck, the system's bug.\nGiving logic a mischievous tug."
 ];
 
-// --- State ---
+const DIALOGUES = {
+    oberon: [
+        "Torment thee not, but let the vision rise.", "Before the morning sun offends our eyes.", "Fetch me that flower, the purple dye of love.", "To paint the clouds that float in skies above.",
+        "Silence awhile, and let the code run deep.", "Strike dead the sense of all who are asleep.", "This falls out better than I could devise.", "A perfect glitch within the lover’s eyes.",
+        "About the wood go swifter than the wind.", "Then fate o’errules, that one man holding troth.", "Ill met by moonlight, if the scene is wrong.", "Correct the lighting where it distinct belongs.",
+        "I know a bank where the wild thyme blows.", "There set the anchor where the user goes.", "Render the passion in the human heart.", "Stand aside, the noise they make is loud."
+    ],
+    titania: [
+        "Come, now a roundel and a fairy song.", "The texture mapping must not take too long.", "Tie up my lover’s tongue, bring him silently.", "The visual grandness is enough for me.",
+        "And thy fair virtue’s force perforce doth move me.", "To debug errors and to swear I love thee.", "Methought I was enamored of an ass.", "But change the model, let this nightmare pass.",
+        "Feed him with apricocks and dewberries.", "The moon, methinks, looks with a wat’ry eye.", "Adjust the bloom before the night goes by.", "Sleep thou, and I will wind thee in my arms.",
+        "Music, ho! Music such as charmeth sleep.", "Layers of sound within the dreamy deep.", "These are the forgeries of jealousy.", "Design the motion smooth as best you can."
+    ],
+    puck: [
+        "I’ll put a girdle round about the earth.", "And compile chaos into happy mirth.", "Lord, what fools these mortals be!", "They click on links they should not see.",
+        "Up and down, up and down.", "I will lead the logic up and down.", "If we shadows have offended.", "Just reboot and all is mended.",
+        "My mistress with a monster is in love.", "A bugs-filled features fit not for above.", "I am that merry wanderer of the night.", "Who fix the shaders till the morning light.",
+        "Here is a villain, drawn and ready.", "Keep the frame rate smooth and steady.", "Swifter than arrow from the Tartar’s bow.", "I’ll patch the system ere the cock does crow."
+    ],
+    fairies: [
+        "Over hill, over dale.", "We trace the logs without a fail.", "Philomel, with melody.", "Sing in our sweet library.", "Hence, away! Now all is well.",
+        "Within the server where we dwell.", "Weaving spiders, come not here.", "Keep the web of code quite clear.", "Ready. And I. And I. And I.", "To polish pixels till we die.",
+        "Hail, mortal! Hail!", "We bring the assets without fail.", "And hang a pearl in every cowslip’s ear.", "The detail setting must be crystal clear.",
+        "Beetles black, approach not near.", "No bugs allowed in this frontier.", "Trip away, make no stay.", "Meet me at the render bay."
+    ],
+    craftsmen: [
+        "Masters, spread yourselves, the time is tight.", "We must install the screen before the night.", "I will roar you as gently as any sucking dove.", "So no distortion breaks the sound of love.",
+        "Some man or other must present Wall.", "Without the hardware, we lose it all.", "Write me a prologue, make it eight and six.", "To tell the audience of our visual tricks.",
+        "O grim-looked night! O night with hue so black!", "Where is the cable that I sadly lack?", "There are things in this comedy that will never please.", "Unless we test it with a greater ease.",
+        "If he come not, then the play is marred.", "And all our coding will be disregarded.", "It is the wittiest partition that ever I heard.", "Though strictly speaking, 'tis a prop absurd."
+    ]
+};
+
+// 2. STATE
 let state = {
     frame: 0, isDay: true, dayTimer: 0, phase: 'PLAYING',
     stats: { nightmare: 0, sweet: 0, neutral: 0 }, dominance: 'NEUTRAL',
-    deliveryScores: { nightmare: 0, sweet: 0, neutral: 0 }, // Accumulated delivery scores
+    deliveryScores: { nightmare: 0, sweet: 0, neutral: 0 },
+    caughtNightmares: 0, rageMode: false,
+    level: 1, timeScale: 1, // [MODIFIED] Added level and timeScale
     items: [], chars: [], houses: [], particles: [], pedestrians: [], dusts: [], stars: [], pucks: [], 
     shelfSlots: new Array(CONFIG.shelfCapacity).fill(null),
-    monitor: { activeItem: null, timer: 0 }
+    monitor: { activeItem: null, timer: 0 },
+    dialogue: { active: null, timer: rand(CONFIG.dialogueInterval.min, CONFIG.dialogueInterval.max) }
 };
 
-// ==========================================
-// 0. Tutorial Logic (ENGLISH)
-// ==========================================
-
-const tutorialSteps = [
-    {
-        title: "Welcome to Dream Factory!",
-        text: "We collect precious memories and craft them into wonderful dreams. The fairies are working hard for you.",
-        zone: null
-    },
-    {
-        title: "1. Gathering (Raw Zone)",
-        text: "Memory fragments from pedestrians are collected here. The orange Movers carry them to the factory.",
-        zone: 'raw'
-    },
-    {
-        title: "2. Processing (Belt)",
-        text: "Fragments move along the conveyor belt. Pink Workers hammer them into shapes like stars or circles.",
-        zone: 'belt'
-    },
-    {
-        title: "3. Decoration (Deco Table)",
-        text: "Shaped dreams are polished here by purple Decorators to make them shine beautifully.",
-        zone: 'decoTable'
-    },
-    {
-        title: "4. Quality Control (Monitor)",
-        text: "Finished dreams are inspected here. If it's a nightmare, there's a 50% chance it will be discarded!",
-        zone: 'monitor'
-    },
-    {
-        title: "5. Delivery (Finish Zone)",
-        text: "Dreams stored on shelves are picked up by yellow Deliverers and sent to the houses below.",
-        zone: 'finish'
-    },
-    {
-        title: "⚠️ Night Threat (Puck)",
-        text: "At night, the mischievous fairy 'Puck' reveals his true form! He creates nightmares with his aura.",
-        zone: null
-    },
-    {
-        title: "👉 Your Role (Interaction)",
-        text: "Click a green Nightmare to purify it! Click the flying Puck to stun him for 3 seconds!",
-        zone: null
-    }
-];
-
-let currentTutStep = 0;
-
-function startTutorial() {
-    currentTutStep = 0;
-    tutOverlay.classList.remove('tut-hidden');
-    tutOverlay.style.display = 'flex';
-    updateTutorialUI();
+// 3. DRAWING & UTILS
+function setSpeed(scale) {
+    state.timeScale = scale;
+    document.querySelectorAll('.ctrl-btn').forEach(b => {
+        b.classList.remove('active');
+        if(b.innerText === scale + 'X') b.classList.add('active');
+    });
 }
 
-function endTutorial() {
-    tutOverlay.style.display = 'none';
-    tutHighlight.style.display = 'none';
-}
-
-function updateTutorialUI() {
-    const step = tutorialSteps[currentTutStep];
-    tutTitle.innerText = step.title;
-    tutText.innerText = step.text;
+function drawSpeechBubble(ctx, text, x, y, alpha) {
+    if(!text) return;
     
-    // Highlight Logic
-    if (step.zone && CONFIG.zones[step.zone]) {
-        const z = CONFIG.zones[step.zone];
-        tutHighlight.style.display = 'block';
-        tutHighlight.style.left = z.x + 'px';
-        tutHighlight.style.top = z.y + 'px';
-        tutHighlight.style.width = z.w + 'px';
-        tutHighlight.style.height = z.h + 'px';
-    } else {
-        tutHighlight.style.display = 'none';
-    }
+    ctx.globalAlpha = alpha;
+    ctx.font = "9px 'Noto Sans KR'"; 
+    const paddingX = 6; const paddingY = 4;
+    const w = ctx.measureText(text).width + paddingX * 2;
+    const h = 16; const r = 3;
+    
+    ctx.fillStyle = "rgba(240, 240, 240, 0.95)";
+    ctx.strokeStyle = "#555";
+    ctx.lineWidth = 1;
+    
+    ctx.beginPath();
+    ctx.moveTo(x - w/2 + r, y - h);
+    ctx.lineTo(x + w/2 - r, y - h);
+    ctx.quadraticCurveTo(x + w/2, y - h, x + w/2, y - h + r);
+    ctx.lineTo(x + w/2, y - r);
+    ctx.quadraticCurveTo(x + w/2, y, x + w/2 - r, y);
+    ctx.lineTo(x - w/2 + r, y);
+    ctx.quadraticCurveTo(x - w/2, y, x - w/2, y - r);
+    ctx.lineTo(x - w/2, y - h + r);
+    ctx.quadraticCurveTo(x - w/2, y - h, x - w/2 + r, y - h);
+    ctx.closePath();
+    
+    ctx.fill(); ctx.stroke();
+    
+    ctx.fillStyle = "#111";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x, y - h/2);
+    ctx.globalAlpha = 1.0;
+}
 
-    if (currentTutStep === tutorialSteps.length - 1) {
-        tutNext.innerText = "Start!";
-    } else {
-        tutNext.innerText = "Next";
+function drawBG() {
+    ctx.fillStyle = '#dfe6e9'; 
+    ctx.strokeStyle = '#b2bec3'; ctx.lineWidth = 10;
+    ctx.beginPath(); 
+    ctx.moveTo(CONFIG.zones.raw.x+50, CONFIG.zones.raw.y); 
+    ctx.lineTo(CONFIG.zones.funnel.x, CONFIG.zones.funnel.y+30);
+    ctx.stroke();
+
+    for(let key in CONFIG.zones) {
+        let z = CONFIG.zones[key];
+        let zx = z.x | 0; let zy = z.y | 0; let zw = z.w | 0; let zh = z.h | 0;
+        if(key === 'belt') {
+             ctx.fillStyle = CONFIG.colors.belt;
+             ctx.fillRect(zx, zy, zw, zh);
+             ctx.fillStyle = '#7f8c8d';
+             let off = (state.frame*CONFIG.speed.belt * state.timeScale) | 0;
+             for(let i=0; i<zw; i+=20) { ctx.fillRect(zx + (i + off)%zw, zy, 2, zh); }
+        } else if (key === 'finish') {
+            ctx.fillStyle = '#b2bec3'; ctx.fillRect(zx, zy, zw, zh);
+            ctx.fillStyle = '#636e72';
+            for(let i=0; i<5; i++) { ctx.fillRect(zx, zy + 15 + i*28, zw, 2); }
+        } else {
+            ctx.fillStyle = '#dfe6e9';
+            ctx.fillRect(zx, zy, zw, zh);
+            ctx.strokeStyle = '#bdc3c7'; ctx.strokeRect(zx, zy, zw, zh);
+        }
+        ctx.fillStyle = '#aaa'; ctx.font = '10px sans-serif';
+        ctx.textAlign = "start";
+        ctx.fillText(key, zx, zy - 5);
+    }
+    
+    if(!state.isDay) {
+        ctx.fillStyle = '#fff';
+        state.stars.forEach(s => {
+            let twinkle = Math.sin(state.frame * 0.1 * state.timeScale + s.x) * 0.5 + 1; 
+            ctx.beginPath(); ctx.arc(s.x, s.y, s.size * twinkle, 0, Math.PI*2); ctx.fill();
+        });
     }
 }
 
-tutNext.addEventListener('click', () => {
-    currentTutStep++;
-    if (currentTutStep >= tutorialSteps.length) {
-        endTutorial();
+function createParticle(x, y, c, size) {
+    if(state.particles.length > 300) return;
+    state.particles.push({x:x, y:y, vx:rand(-2,2), vy:rand(-2,2), life:30, c:c, type:'p', size:size});
+}
+
+function createEmote(x, y, text) {
+    if(state.particles.length > 300) return; 
+    state.particles.push({x:x, y:y, vy:-1, life:40, text:text, type:'emote'});
+}
+
+function showPuckMessage() {
+    if(!state.isDay) {
+        const msg = puckMessages[Math.floor(Math.random() * puckMessages.length)];
+        puckText.innerText = "";
+        puckBox.style.display = 'block';
+        let i = 0;
+        const typeInterval = setInterval(() => {
+            if(i < msg.length) {
+                puckText.innerText += msg[i];
+                i++;
+            } else {
+                clearInterval(typeInterval);
+            }
+        }, 50 / state.timeScale); // Faster typing on speed up
+        setTimeout(() => { puckBox.style.display = 'none'; }, 4000 / state.timeScale);
+    }
+}
+
+function updateStats() {
+    if(state.isDay) {
+        document.body.style.backgroundColor = CONFIG.colors.dayBG;
+        titleElem.className = 'title-day';
+        nightDisclaimer.style.display = 'none';
     } else {
-        updateTutorialUI();
+        document.body.style.backgroundColor = CONFIG.colors.nightBG;
+        titleElem.className = 'title-night';
+        nightDisclaimer.style.display = 'block';
     }
-});
+    
+    let progress = state.dayTimer / CONFIG.dayLength;
+    timeMarker.style.left = `${progress * 100}%`;
+    timeMarker.innerText = state.isDay ? '🌞' : '🌙';
 
-tutSkip.addEventListener('click', endTutorial);
-helpBtn.addEventListener('click', startTutorial);
+    let currentSweet = 0, currentNightmare = 0, currentNeutral = 0;
+    for(const item of state.items) {
+        if(item.stage === 'DELETED') continue;
+        if(item.qualityType === 1) currentNightmare++;
+        else if(item.qualityType === 2) currentSweet++;
+        else currentNeutral++;
+    }
 
+    let finalSweet = state.deliveryScores.sweet + (currentSweet * CONFIG.activeItemScore);
+    let finalNightmare = state.deliveryScores.nightmare + (currentNightmare * CONFIG.activeItemScore);
+    let finalNeutral = state.deliveryScores.neutral + (currentNeutral * CONFIG.activeItemScore);
+
+    scoreElSweet.innerText = finalSweet;
+    scoreElNightmare.innerText = finalNightmare;
+    scoreElNeutral.innerText = finalNeutral;
+    
+    state.stats.sweet = finalSweet;
+    state.stats.nightmare = finalNightmare;
+    state.stats.neutral = finalNeutral;
+}
 
 // ==========================================
-// 1. Entities
+// 4. ENTITY CLASSES
 // ==========================================
 
-class Puck { // The Night Flying Puck
+class Puck {
     constructor() {
-        this.x = canvas.width/2; this.y = -50;
-        this.vx = rand(-3,3); this.vy = rand(2,4);
+        this.x = canvas.width/2; 
+        this.y = 50; 
+        // [MODIFIED] Level Based Speed
+        let baseSpeed = 2 + (state.level * 0.5); 
+        this.vx = rand(-baseSpeed, baseSpeed); 
+        this.vy = rand(2, baseSpeed);
         this.stunTimer = 0;
+        this.speech = { text: "", timer: 0 };
     }
-    update() {
-        if(this.stunTimer > 0) { this.stunTimer--; return; } // Stop moving if stunned
+    update(dt) { // dt is timeScale
+        if (this.speech.timer > 0) this.speech.timer -= dt;
+        else if (Math.random() < 0.001 * dt) { 
+            this.speech.text = DIALOGUES.puck[Math.floor(Math.random()*DIALOGUES.puck.length)];
+            this.speech.timer = 300; 
+        }
+
+        if(this.stunTimer > 0) { this.stunTimer -= dt; return; } 
         
-        this.x += this.vx; this.y += this.vy;
+        this.x += this.vx * dt; this.y += this.vy * dt;
+
+        const padding = 30;
+        if (this.x < padding) { this.x = padding; this.vx *= -1; }
+        if (this.x > canvas.width - padding) { this.x = canvas.width - padding; this.vx *= -1; }
         
-        // Bounce
-        if(this.x < 0 || this.x > canvas.width) this.vx *= -1;
-        if(this.y < 0 || this.y > canvas.height - 100) this.vy *= -1;
+        if (this.y < padding) { this.y = padding; this.vy = Math.abs(this.vy); } 
+        if (this.y > canvas.height - 100) { this.y = canvas.height - 100; this.vy *= -1; }
+
+        if(Math.random() < 0.03 * dt) { 
+            let maxS = 2 + (state.level * 0.5);
+            this.vx = rand(-maxS, maxS); 
+            this.vy = rand(-maxS, maxS); 
+            if (Math.abs(this.vx) < 1) this.vx = this.vx < 0 ? -1.5 : 1.5;
+            if (Math.abs(this.vy) < 1) this.vy = this.vy < 0 ? -1.5 : 1.5;
+        }
         
-        // Erratic movement
-        if(Math.random() < 0.05) { this.vx = rand(-4,4); this.vy = rand(-4,4); }
+        // [MODIFIED] Level based Aura Radius
+        const auraRadius = 80 + (state.level * 10);
+        const auraRadiusSq = auraRadius * auraRadius;
         
-        // Corrupt items (Green Aura Effect)
-        const auraRadiusSq = 80 * 80; // Range for the "light"
         for(let item of state.items) {
             if(item.qualityType !== 1 && distSq(this.x, this.y, item.x, item.y) < auraRadiusSq) {
-                item.qualityType = 1; // Turn to Nightmare
-                createParticle(item.x, item.y, '#00ff00', 3);
+                // Higher level = faster conversion chance
+                if (Math.random() < 0.1 + (state.level * 0.05)) {
+                    item.qualityType = 1; 
+                    createParticle(item.x, item.y, '#00ff00', 3);
+                }
             }
         }
     }
     hit() {
-        this.stunTimer = 180; // 3 seconds at 60fps
+        this.stunTimer = 180; 
         createEmote(this.x, this.y-20, '💫'); 
         createParticle(this.x, this.y, '#ffff00', 10);
     }
     draw() {
         ctx.save(); ctx.translate(this.x | 0, this.y | 0);
         
-        // Green Glow Aura
-        if (this.stunTimer === 0) {
-            let pulse = Math.sin(state.frame * 0.2) * 5;
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
-            ctx.beginPath(); ctx.arc(0, 0, 50 + pulse, 0, Math.PI*2); ctx.fill();
+        let pulse = Math.sin(state.frame * 0.2) * 10;
+        let auraSize = (60 + (state.level * 2)) + pulse;
+        
+        if (this.stunTimer <= 0) {
+            let grad = ctx.createRadialGradient(0, 0, 10, 0, 0, auraSize);
+            grad.addColorStop(0, 'rgba(0, 255, 0, 0.1)');
+            grad.addColorStop(0.5, 'rgba(0, 255, 0, 0.3)');
+            grad.addColorStop(1, 'rgba(0, 255, 0, 0)');
             
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.4)';
-            ctx.beginPath(); ctx.arc(0, 0, 30 + pulse/2, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = grad; 
+            ctx.beginPath(); ctx.arc(0, 0, auraSize, 0, Math.PI*2); ctx.fill();
+            
+            ctx.fillStyle = 'rgba(50, 255, 50, 0.2)'; 
+            ctx.beginPath(); ctx.arc(0, 0, (35 + state.level) + pulse/2, 0, Math.PI*2); ctx.fill();
         } else {
             ctx.rotate(rand(-0.2, 0.2));
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.1)'; 
+            ctx.beginPath(); ctx.arc(0, 0, 40, 0, Math.PI*2); ctx.fill();
         }
 
         ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.fill();
         ctx.fillStyle = '#00ff00'; ctx.font = "12px serif"; ctx.fillText("😈", -6, 4);
         
         let wingY = this.stunTimer > 0 ? 0 : Math.sin(state.frame * 0.8) * 5;
-        ctx.fillStyle = 'rgba(50,255,50,0.5)';
-        ctx.beginPath(); ctx.ellipse(-10, -5 + wingY, 10, 5, -0.5, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(10, -5 + wingY, 10, 5, 0.5, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(50,255,50,0.8)';
+        ctx.beginPath(); ctx.ellipse(-12, -5 + wingY, 12, 6, -0.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(12, -5 + wingY, 12, 6, 0.5, 0, Math.PI*2); ctx.fill();
+        
+        if (this.speech.timer > 0) drawSpeechBubble(ctx, this.speech.text, 0, -30);
         ctx.restore();
     }
 }
@@ -439,7 +596,7 @@ class Item {
         this.reserved = false; 
         this.size = 5; 
         this.shape = 'blob'; 
-        this.qualityType = 0; // 0: Neutral, 1: Nightmare, 2: Sweet
+        this.qualityType = 0; 
         this.processedBy = new Set();
         this.slotIndex = -1;
         this.isChunk = false; 
@@ -451,18 +608,16 @@ class Item {
     }
     toggleQuality() {
         if (this.qualityType === 0) { 
-            this.qualityType = 2; // Make Sweet
-            createEmote(this.x, this.y-20, '❤️'); 
+            this.qualityType = 2; createEmote(this.x, this.y-20, '❤️'); 
         }
         else if (this.qualityType === 2) { 
-            this.qualityType = 1; // Make Nightmare
-            createEmote(this.x, this.y-20, '!!'); 
+            this.qualityType = 1; createEmote(this.x, this.y-20, '!!'); 
         }
         else { 
-            this.qualityType = 0; // Back to Neutral
+            this.qualityType = 0; 
         }
     }
-    update() {
+    update(dt) {
         if (this.carrier) { 
             this.x = this.carrier.x; 
             this.y = this.carrier.type === 'deliverer' ? this.carrier.y + 15 : this.carrier.y - 14;
@@ -470,14 +625,13 @@ class Item {
         }
         if (this.y > canvas.height + 100) { this.stage = 'DELETED'; }
         
-        // --- Stage Transition Logic ---
         if (this.stage === 'FLYING_TO_FACTORY') {
             let dSq = distSq(this.x, this.y, this.targetRawX, this.targetRawY);
             if (dSq < 25) { this.stage = 'RAW'; this.x = this.targetRawX; this.y = this.targetRawY; } 
-            else { this.x += (this.targetRawX - this.x) * 0.05; this.y += (this.targetRawY - this.y) * 0.05; }
+            else { this.x += (this.targetRawX - this.x) * 0.05 * dt; this.y += (this.targetRawY - this.y) * 0.05 * dt; }
         }
         else if (this.stage === 'ON_BELT') {
-            this.x += CONFIG.speed.belt; this.y = CONFIG.zones.belt.y + 15;
+            this.x += CONFIG.speed.belt * dt; this.y = CONFIG.zones.belt.y + 15;
             if (this.x > CONFIG.zones.belt.x + CONFIG.zones.belt.w) {
                 this.stage = 'PENDING_DECO'; 
                 this.x = CONFIG.zones.beltEnd.x + rand(0, 30); this.y = CONFIG.zones.beltEnd.y + rand(0, 30);
@@ -486,25 +640,28 @@ class Item {
         }
         else if (this.stage === 'WAITING_MONITOR') {
             if (!state.monitor.activeItem) { this.stage = 'MONITORING'; } 
-            else { let qx = CONFIG.zones.monitorQueue.x + CONFIG.zones.monitorQueue.w - 15; if (this.x < qx) this.x += 0.5; }
+            else { let qx = CONFIG.zones.monitorQueue.x + CONFIG.zones.monitorQueue.w - 15; if (this.x < qx) this.x += 0.5 * dt; }
         }
         else if (this.stage === 'MONITORING') {
-            state.monitor.timer++; state.monitor.activeItem = this; 
+            state.monitor.timer += dt; state.monitor.activeItem = this; 
             let targetX = CONFIG.zones.monitorPad.x + CONFIG.zones.monitorPad.w/2;
             let targetY = CONFIG.zones.monitorPad.y + CONFIG.zones.monitorPad.h/2;
-            this.x += (targetX - this.x) * 0.2; this.y += (targetY - this.y) * 0.2;
+            this.x += (targetX - this.x) * 0.2 * dt; this.y += (targetY - this.y) * 0.2 * dt;
             if (state.monitor.timer > 30) { 
-                // --- MODIFIED MONITORING LOGIC ---
                 let passed = true;
-                if(this.qualityType === 1) { // Nightmare
+                if(this.qualityType === 1) { 
                     if(Math.random() < 0.5) {
-                        passed = false; // Caught!
+                        passed = false; 
                         this.stage = 'DELETED';
-                        // Look for MonitorSup to emote
+                        state.caughtNightmares++;
                         let sup = state.chars.find(c => c.type === 'monitorSup');
-                        if(sup) { 
-                            createEmote(sup.x, sup.y - 20, '!!'); 
-                            sup.jump();
+                        if(sup) { createEmote(sup.x, sup.y - 20, '!!'); sup.jump(); }
+                        
+                        if(state.caughtNightmares >= 5 && !state.rageMode) {
+                            state.rageMode = true;
+                            rageOverlay.style.background = "rgba(255, 0, 0, 0.1)";
+                            let titania = state.chars.find(c => c.type === 'ceo' && c.id === 1);
+                            if(titania) { createEmote(titania.x, titania.y-30, "!!!"); titania.jump(); }
                         }
                     }
                 }
@@ -516,7 +673,6 @@ class Item {
                         this.stage = 'AUTO_MOVE_TO_SHELF';
                     }
                 }
-                
                 state.monitor.timer = 0; state.monitor.activeItem = null;
             }
         }
@@ -531,8 +687,9 @@ class Item {
             }
             else { 
                 let d = Math.sqrt(dSq);
-                this.x += (targetX - this.x)/d * CONFIG.speed.autoMove; 
-                this.y += (targetY - this.y)/d * CONFIG.speed.autoMove; 
+                let move = CONFIG.speed.autoMove * dt;
+                this.x += (targetX - this.x)/d * move; 
+                this.y += (targetY - this.y)/d * move; 
             }
         }
         else if (this.stage === 'ON_SHELF') {
@@ -547,14 +704,10 @@ class Item {
         ctx.save(); ctx.translate(this.x | 0, this.y | 0);
         
         if (this.qualityType === 1) { 
-            // Nightmare (Green)
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.4)'; 
-            ctx.beginPath(); ctx.arc(0,0, this.size+6, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.4)'; ctx.beginPath(); ctx.arc(0,0, this.size+6, 0, Math.PI*2); ctx.fill();
         }
         else if (this.qualityType === 2) { 
-            // Sweet (Pink)
-            ctx.fillStyle = 'rgba(255, 105, 180, 0.4)'; 
-            ctx.beginPath(); ctx.arc(0,0, this.size+6, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = 'rgba(255, 105, 180, 0.4)'; ctx.beginPath(); ctx.arc(0,0, this.size+6, 0, Math.PI*2); ctx.fill();
         }
 
         if (['PACKED', 'WAITING_MONITOR', 'MONITORING', 'AUTO_MOVE_TO_SHELF', 'ON_SHELF', 'DELIVERING'].includes(this.stage) || (this.carrier && this.stage === 'PACKED')) {
@@ -584,32 +737,26 @@ class Pedestrian {
     constructor() {
         this.x = rand(0, canvas.width); this.y = canvas.height - 40 + rand(-10, 10);
         this.dir = Math.random() < 0.5 ? 1 : -1; this.color = `hsl(${rand(0, 360)}, 70%, 50%)`; 
-        this.memoryTimer = rand(100, 200); // Reduced spawn rate (Original ~20-60)
+        this.memoryTimer = rand(100, 200); 
     }
-    update() {
-        if(!state.isDay) return;
-        this.x += this.dir * 0.5;
+    update(dt) {
+        this.x += this.dir * 0.5 * dt;
         if(this.x < -20) this.x = canvas.width+20; if(this.x > canvas.width+20) this.x = -20;
-        this.memoryTimer--;
+        this.memoryTimer -= dt;
         if (this.memoryTimer <= 0) { 
             let item = new Item(); item.x = this.x; item.y = this.y - 20;
             item.targetRawX = CONFIG.zones.raw.x + rand(10, CONFIG.zones.raw.w - 10);
             item.targetRawY = CONFIG.zones.raw.y + rand(10, CONFIG.zones.raw.h - 10);
             item.stage = 'FLYING_TO_FACTORY'; state.items.push(item);
-            this.memoryTimer = rand(100, 200); // Reset to slower rate
+            this.memoryTimer = rand(100, 200); 
         }
     }
     draw() {
-        if(!state.isDay) return;
         ctx.fillStyle = this.color; ctx.fillRect(this.x-5, this.y-15, 10, 15);
         ctx.fillStyle = '#ffeaa7'; ctx.beginPath(); ctx.arc(this.x, this.y-20, 5, 0, Math.PI*2); ctx.fill();
         ctx.fillStyle = '#333'; ctx.fillRect(this.x-4, this.y, 3, 8); ctx.fillRect(this.x+1, this.y, 3, 8);
     }
 }
-
-// ==========================================
-// 2. Characters & Subclasses
-// ==========================================
 
 class Character {
     constructor(type, id) {
@@ -618,6 +765,7 @@ class Character {
         this.target = null; this.state = 'IDLE'; 
         this.timer = 0; this.jumpY = 0; this.jumpV = 0;
         this.backpack = []; 
+        this.speech = { text: "", timer: 0 };
         this.initPos();
     }
 
@@ -631,7 +779,6 @@ class Character {
     reset() { this.target = null; this.state = 'IDLE'; this.timer = 0; this.backpack = []; this.jumpY=0; this.jumpV=0; }
     jump() { if(this.jumpY === 0) this.jumpV = -6; }
     
-    // Optimized moveTo
     moveTo(tx, ty, spd, onComplete) {
         let dSq = distSq(this.x, this.y, tx, ty);
         if(dSq < 25) { if(onComplete) onComplete(); } 
@@ -641,35 +788,52 @@ class Character {
         }
     }
     
-    update(speedMult) {
+    update(dt) {
+        if (this.speech.timer > 0) this.speech.timer -= dt;
+        else if (Math.random() < 0.001 * dt) { 
+            let key = '';
+            if(this.type === 'ceo') key = this.id === 0 ? 'oberon' : 'titania';
+            else if(this.type === 'puckHuman') key = 'puck';
+            else if(['mover','decorator','monitorSup'].includes(this.type)) key = 'fairies';
+            else key = 'craftsmen';
+            
+            if(DIALOGUES[key]) {
+                this.speech.text = DIALOGUES[key][Math.floor(Math.random()*DIALOGUES[key].length)];
+                this.speech.timer = 300;
+            }
+        }
+
         if (this.jumpV !== 0 || this.jumpY !== 0) {
-            this.jumpY += this.jumpV; this.jumpV += 0.5; if(this.jumpY >= 0) { this.jumpY = 0; this.jumpV = 0; }
+            this.jumpY += this.jumpV * dt; this.jumpV += 0.5 * dt; if(this.jumpY >= 0) { this.jumpY = 0; this.jumpV = 0; }
         }
         
         if (!state.isDay) {
-            if (state.dominance === 'NIGHTMARE' && Math.random()<0.05) { this.x += rand(-2,2); return; }
-            if (state.dominance === 'SWEET' && Math.random()<0.01) createEmote(this.x, this.y-25, '🎵');
+            if (state.dominance === 'NIGHTMARE' && Math.random()<0.05 * dt) { this.x += rand(-2,2); return; }
+            if (state.dominance === 'SWEET' && Math.random()<0.01 * dt) createEmote(this.x, this.y-25, '🎵');
         }
 
-        this.runAI(speedMult);
+        this.runAI(dt);
     }
 
-    runAI(speedMult) { /* Override */ }
+    runAI(dt) { /* Override */ }
 
     drawBase(color) {
         let s = CONFIG.charSize; let yOff = this.jumpY;
-        let dx = this.x | 0; let dy = this.y | 0; // Integer coordinates
+        let dx = this.x | 0; let dy = this.y | 0;
         ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(dx, dy, s/2, s/4, 0, 0, Math.PI*2); ctx.fill();
         ctx.fillStyle = color; ctx.fillRect(dx-s/2, dy-s/2+yOff, s, s*1.3);
         ctx.fillStyle = '#ffeaa7'; ctx.beginPath(); ctx.arc(dx, dy-s/2+yOff, s/2, 0, Math.PI*2); ctx.fill();
     }
     
-    draw() { this.drawBase('#7f8c8d'); }
+    draw() { 
+        this.drawBase('#7f8c8d'); 
+        if (this.speech.timer > 0) drawSpeechBubble(ctx, this.speech.text, this.x, this.y - 25);
+    }
 }
 
 class Mover extends Character {
-    runAI(speedMult) {
-        let speed = CONFIG.speed.run * speedMult;
+    runAI(dt) {
+        let speed = CONFIG.speed.run * dt;
         if(this.state==='IDLE') {
             if (this.backpack.length > 0) {
                 if(this.backpack.length < 4) {
@@ -733,17 +897,15 @@ class Mover extends Character {
                 ctx.fillStyle = c; ctx.beginPath(); ctx.arc(this.x, yBase - (i*4), 4, 0, Math.PI*2); ctx.fill();
             });
         }
+        if (this.speech.timer > 0) drawSpeechBubble(ctx, this.speech.text, this.x, this.y - 25);
     }
 }
 
 class Janitor extends Character {
-    runAI(speedMult) {
-        let speed = CONFIG.speed.run * speedMult;
+    runAI(dt) {
+        let speed = CONFIG.speed.run * dt;
         if(this.state === 'IDLE') {
-            if (this.backpack.length >= 10) {
-                this.state = 'TO_TRASH';
-                return;
-            }
+            if (this.backpack.length >= 10) { this.state = 'TO_TRASH'; return; }
             
             let trashItem = state.items.find(i => i.stage === 'RAW' && !i.carrier && !i.reserved && (i.baseColor === '#1dd1a1' || i.qualityType === 1));
             
@@ -752,7 +914,6 @@ class Janitor extends Character {
                 this.target.reserved = true; 
                 this.state = 'PICKUP'; 
             } else if (this.backpack.length > 0) {
-                // If no trash visible and have some, go dump it
                 this.state = 'TO_TRASH';
             }
         }
@@ -760,13 +921,11 @@ class Janitor extends Character {
             if(!this.target || !state.items.includes(this.target)) { this.state = 'IDLE'; return; }
             this.moveTo(this.target.x, this.target.y, speed, () => {
                if(state.items.includes(this.target)) { 
-                   // Collect into backpack instead of setting carrier
-                   this.backpack.push(1); // Just dummy marker
+                   this.backpack.push(1); 
                    let idx = state.items.indexOf(this.target);
                    if(idx !== -1) state.items.splice(idx, 1);
                    this.target = null;
-                   
-                   this.state = 'IDLE'; // Go back to finding more
+                   this.state = 'IDLE'; 
                } 
                else { this.state = 'IDLE'; }
             });
@@ -776,7 +935,7 @@ class Janitor extends Character {
             this.moveTo(tZone.x + tZone.w/2, tZone.y + tZone.h/2, speed, () => {
                 if (this.backpack.length > 0) {
                     createParticle(this.x, this.y, '#555', 8); 
-                    this.backpack = []; // Empty bag
+                    this.backpack = []; 
                 }
                 this.state = 'IDLE';
             });
@@ -785,16 +944,16 @@ class Janitor extends Character {
     draw() {
         this.drawBase('#2c3e50');
         ctx.fillStyle = '#555'; ctx.fillRect(this.x-CONFIG.charSize/2, this.y-CONFIG.charSize/2+this.jumpY-3, CONFIG.charSize, 3);
-        // Draw bag indicator
         if(this.backpack.length > 0) {
             ctx.fillStyle = '#000';
             ctx.beginPath(); ctx.arc(this.x+8, this.y+5, 3 + (this.backpack.length/2), 0, Math.PI*2); ctx.fill();
         }
+        if (this.speech.timer > 0) drawSpeechBubble(ctx, this.speech.text, this.x, this.y - 25);
     }
 }
 
 class Worker extends Character {
-    runAI() {
+    runAI(dt) {
         let item = state.items.find(i => i.stage==='ON_BELT' && Math.abs(i.x-this.x)<20 && !i.processedBy.has(this.id));
         if(item) {
             item.processedBy.add(this.id);
@@ -805,23 +964,39 @@ class Worker extends Character {
             this.jump();
         }
     }
-    draw() { this.drawBase('#e84393'); }
+    draw() { 
+        this.drawBase('#e84393'); 
+        if (this.speech.timer > 0) drawSpeechBubble(ctx, this.speech.text, this.x, this.y + 30);
+    }
 }
 
 class MonitorSup extends Character {
-    runAI() {
+    runAI(dt) {
         let activeItem = state.monitor.activeItem;
         if (activeItem && state.frame % 30 === 0) {
             if (activeItem.qualityType === 1) { createEmote(this.x, this.y - 20, '!!'); this.jump(); } 
             else if (activeItem.qualityType === 2) { createEmote(this.x, this.y - 20, '❤️'); }
         }
     }
-    draw() { this.drawBase('#7f8c8d'); }
+    draw() { 
+        this.drawBase('#7f8c8d'); 
+        if (this.speech.timer > 0) drawSpeechBubble(ctx, this.speech.text, this.x, this.y - 25);
+    }
 }
 
 class Decorator extends Character {
-    runAI(speedMult) {
-        let speed = CONFIG.speed.run * speedMult;
+    runAI(dt) {
+        let speed = state.rageMode ? CONFIG.speed.run * 3.0 : CONFIG.speed.run * dt;
+        
+        if(state.rageMode) {
+            state.items.forEach(item => {
+               if(item.qualityType !== 2 && distSq(this.x, this.y, item.x, item.y) < 2500) {
+                   item.qualityType = 2; 
+                   createParticle(item.x, item.y, '#ff69b4', 5);
+               } 
+            });
+        }
+
         if(this.state==='IDLE' || this.state==='WAITING') {
             let item = state.items.find(i=>i.stage==='PENDING_DECO' && !i.carrier && !i.reserved);
             if(item) { item.reserved = true; this.target = item; this.state='PICKUP'; return; }
@@ -832,7 +1007,7 @@ class Decorator extends Character {
                  let dSq = distSq(this.x, this.y, waitX, waitY);
                  if (dSq > 25) { this.moveTo(waitX, waitY, speed, () => { this.state = 'WAITING'; }); }
             } else {
-                 if(Math.random() < 0.02) {
+                 if(Math.random() < 0.02 * dt) {
                      const talks = ['🎀', '✨', '🎨', '🤔', '💎', '🌈', '💝'];
                      createEmote(this.x, this.y - 15, talks[Math.floor(Math.random()*talks.length)]);
                  }
@@ -851,8 +1026,8 @@ class Decorator extends Character {
             this.moveTo(tx, ty, speed, ()=>{ this.state='DECORATING'; this.timer = 0; });
         }
         else if(this.state==='DECORATING') {
-            this.timer++;
-            if(this.timer > 30) { 
+            this.timer += dt;
+            if(this.timer > (state.rageMode ? 5 : 30)) { 
                 if(this.target) { this.target.stage = 'PACKED'; createParticle(this.x, this.y - 15, '#fff', 5); }
                 this.state = 'TO_QUEUE'; 
             }
@@ -874,7 +1049,13 @@ class Decorator extends Character {
             this.moveTo(base.x + base.w/2, base.y + base.h + 10, speed, ()=>{ this.state='WAITING'; });
         }
     }
-    draw() { this.drawBase('#8e44ad'); }
+    draw() { 
+        this.drawBase('#8e44ad');
+        if(state.rageMode) { 
+            ctx.fillStyle = rand(0,1)>0.5?'#e74c3c':'#f1c40f';
+            ctx.beginPath(); ctx.moveTo(this.x-5, this.y-25); ctx.lineTo(this.x, this.y-40); ctx.lineTo(this.x+5, this.y-25); ctx.fill();
+        }
+    }
 }
 
 class Deliverer extends Character {
@@ -885,9 +1066,9 @@ class Deliverer extends Character {
     reset() {
         super.reset(); this.x = -1000;
     }
-    runAI(speedMult) {
+    runAI(dt) {
         if (state.isDay) {
-            if (this.x < canvas.width + 150) { this.x += 8; }
+            if (this.x < canvas.width + 150) { this.x += 8 * dt; }
             this.target = null; this.state = 'IDLE';
             return;
         }
@@ -897,7 +1078,7 @@ class Deliverer extends Character {
             this.state = 'IDLE';
         }
 
-        let speed = CONFIG.speed.fly * speedMult;
+        let speed = CONFIG.speed.fly * dt;
         
         if (this.state === 'IDLE' || this.state === 'RETURN' || this.state === 'WAITING') {
             let job = state.items.find(i => i.stage === 'ON_SHELF' && !i.carrier && !i.reserved);
@@ -929,9 +1110,7 @@ class Deliverer extends Character {
             let dSq = distSq(this.x, this.y, tx, ty);
             if (dSq < 25) {
                 if (this.target) {
-                    // Capture quality type BEFORE nulling target
                     const qType = this.target.qualityType;
-
                     this.destHouse.receiveItem(this.target);
                     this.target.carrier = null;
                     let idx = state.items.indexOf(this.target);
@@ -939,7 +1118,6 @@ class Deliverer extends Character {
                     this.target = null;
                     createParticle(this.x, this.y, '#f1c40f', 8);
                     
-                    // --- SCORING: DELIVERY BONUS ---
                     if(qType === 1) state.deliveryScores.nightmare += CONFIG.deliveryBonus;
                     else if(qType === 2) state.deliveryScores.sweet += CONFIG.deliveryBonus;
                     else state.deliveryScores.neutral += CONFIG.deliveryBonus;
@@ -952,7 +1130,6 @@ class Deliverer extends Character {
             }
         }
         else {
-            // Hovering
             let waitX = CONFIG.zones.finish.x + CONFIG.zones.finish.w + 40 + (this.id % 2) * 30;
             let waitY = CONFIG.zones.finish.y + 20 + (this.id * 25);
             let dSq = distSq(this.x, this.y, waitX, waitY);
@@ -960,7 +1137,7 @@ class Deliverer extends Character {
                 let d = Math.sqrt(dSq);
                 this.x += (waitX - this.x)/d * speed; this.y += (waitY - this.y)/d * speed; this.state = 'RETURN'; 
             } 
-            else { this.state = 'IDLE'; this.y += Math.sin(state.frame * 0.1 + this.id) * 0.5; }
+            else { this.state = 'IDLE'; this.y += Math.sin(state.frame * 0.1 + this.id) * 0.5 * dt; }
         }
     }
     draw() {
@@ -980,12 +1157,12 @@ class Deliverer extends Character {
 }
 
 class Office extends Character {
-    runAI() {
+    runAI(dt) {
         if(this.state==='IDLE') {
-            if(Math.random()<0.01) {
+            if (Math.random()<0.01 * dt) {
                 let tx = rand(CONFIG.zones.office.x, CONFIG.zones.office.x+CONFIG.zones.office.w);
                 let ty = rand(CONFIG.zones.office.y, CONFIG.zones.office.y+CONFIG.zones.office.h);
-                this.moveTo(tx, ty, 1, () => this.state='IDLE');
+                this.moveTo(tx, ty, 1 * dt, () => this.state='IDLE');
             }
         }
     }
@@ -1005,15 +1182,44 @@ class Office extends Character {
 }
 
 class CEO extends Character {
-    runAI() {
-        if (this.id === 1) { // Titania
-            if (Math.random() < 0.03) createEmote(this.x, this.y - 20, ['🌸', '🌺', '🌼'][Math.floor(Math.random()*3)]);
+    runAI(dt) {
+        if (this.id === 0) { // Oberon
             state.items.forEach(i => {
-                if(i.qualityType === 1 && distSq(this.x, this.y, i.x, i.y) < 10000 && Math.random() < 0.1) {
+                if(i.stage === 'ON_SHELF' && i.qualityType !== 0 && distSq(this.x, this.y, i.x, i.y) < 1600) {
+                    if(Math.random() < 0.05 * dt) {
+                        i.qualityType = 0; 
+                        createEmote(i.x, i.y-20, '⚖️');
+                    }
+                }
+            });
+        }
+
+        if (this.id === 1) { // Titania
+            if(state.rageMode) {
+                let speed = CONFIG.speed.run * 3.0 * dt;
+                state.items.forEach(i => {
+                    if(i.qualityType !== 2 && distSq(this.x, this.y, i.x, i.y) < 3600) {
+                        i.qualityType = 2; 
+                        createParticle(i.x, i.y, '#ff69b4', 5);
+                    }
+                });
+                if(Math.random() < 0.1 * dt) {
+                    this.target = {x: rand(0, canvas.width), y: rand(0, canvas.height)};
+                    this.state = 'RAGE_MOVE';
+                }
+                if(this.state === 'RAGE_MOVE') {
+                    this.moveTo(this.target.x, this.target.y, speed, () => { this.state = 'IDLE'; });
+                }
+                return; 
+            }
+
+            if (Math.random() < 0.03 * dt) createEmote(this.x, this.y - 20, ['🌸', '🌺', '🌼'][Math.floor(Math.random()*3)]);
+            state.items.forEach(i => {
+                if(i.qualityType === 1 && distSq(this.x, this.y, i.x, i.y) < 10000 && Math.random() < 0.1 * dt) {
                     i.qualityType = 2; createParticle(this.x, this.y, '#ff69b4', 5); createEmote(i.x, i.y-20, '✨');
                 }
             });
-        } else { // Oberon
+        } else { // Oberon combat
             state.pucks.forEach(p => {
                 if(p.stunTimer === 0 && distSq(this.x, this.y, p.x, p.y) < 3600) {
                     p.hit(); createEmote(this.x, this.y-30, '⚔️');
@@ -1024,12 +1230,12 @@ class CEO extends Character {
         if(this.state === 'IDLE') {
             let spots;
             if (this.id === 1) spots = [ {x: CONFIG.zones.office.x + 50, y: CONFIG.zones.office.y + 60}, {x: CONFIG.zones.ceo.x + 30, y: CONFIG.zones.ceo.y + 40} ];
-            else spots = [ {x: CONFIG.zones.monitor.x, y: CONFIG.zones.monitor.y+50}, {x: CONFIG.zones.funnel.x, y: CONFIG.zones.funnel.y+50}, {x: CONFIG.zones.ceo.x+30, y: CONFIG.zones.ceo.y+40} ];
+            else spots = [ {x: CONFIG.zones.monitor.x, y: CONFIG.zones.monitor.y+50}, {x: CONFIG.zones.funnel.x, y: CONFIG.zones.funnel.y+50}, {x: CONFIG.zones.ceo.x+30, y: CONFIG.zones.ceo.y+40}, {x: CONFIG.zones.finish.x+50, y: CONFIG.zones.finish.y+100} ];
             this.target = spots[Math.floor(Math.random()*spots.length)]; this.state = 'PATROL';
         } else if (this.state === 'PATROL') {
-            this.moveTo(this.target.x, this.target.y, 2, () => { this.state = 'WATCHING'; this.timer = 0; });
+            this.moveTo(this.target.x, this.target.y, 2 * dt, () => { this.state = 'WATCHING'; this.timer = 0; });
         } else if (this.state === 'WATCHING') {
-            this.timer++; if(this.timer > 150) this.state = 'IDLE';
+            this.timer += dt; if(this.timer > 150) this.state = 'IDLE';
         }
     }
     draw() {
@@ -1037,31 +1243,28 @@ class CEO extends Character {
         let s = CONFIG.charSize; let yOff = this.jumpY;
         ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 2; 
         ctx.beginPath(); ctx.moveTo(this.x-8, this.y-25+yOff); ctx.lineTo(this.x+8, this.y-25+yOff); ctx.stroke();
+        
+        if(this.id === 1 && state.rageMode) {
+            ctx.fillStyle = rand(0,1)>0.5?'#e74c3c':'#f1c40f';
+            ctx.beginPath(); ctx.moveTo(this.x-5, this.y-30); ctx.lineTo(this.x, this.y-45); ctx.lineTo(this.x+5, this.y-30); ctx.fill();
+        }
+        
+        if (this.speech.timer > 0) drawSpeechBubble(ctx, this.speech.text, this.x, this.y - 40);
     }
 }
 
-// PuckHuman (Formerly Secretary) - Turns into flying Puck at night
 class PuckHuman extends Character {
-    runAI(speedMult) {
-        // Disappear at night (transforms into Flying Puck)
-        if(!state.isDay) {
-            this.x = -1000;
-            return;
-        }
-        
-        // Return to map if day
-        if(state.isDay && this.x < -100) {
-            this.x = rand(50, canvas.width-50);
-            this.y = rand(50, canvas.height/2);
-        }
+    runAI(dt) {
+        if(!state.isDay) { this.x = -1000; return; }
+        if(state.isDay && this.x < -100) { this.x = rand(50, canvas.width-50); this.y = rand(50, canvas.height/2); }
 
-        let speed = CONFIG.speed.run * 2.5 * speedMult;
+        let speed = CONFIG.speed.run * 2.5 * dt;
         if (this.state === 'PATROL' || this.state === 'PICKUP') this.jumpY = Math.abs(Math.sin(state.frame * 0.4)) * -6; 
         else this.jumpY = 0;
         
         state.items.forEach(item => {
             if (['PENDING_DECO', 'PACKED', 'WAITING_MONITOR', 'MONITORING', 'AUTO_MOVE_TO_SHELF', 'ON_SHELF'].includes(item.stage)) {
-                if (distSq(this.x, this.y, item.x, item.y) < 400 && Math.random() < 0.1) item.toggleQuality();
+                if (distSq(this.x, this.y, item.x, item.y) < 400 && Math.random() < 0.1 * dt) item.toggleQuality();
             }
         });
 
@@ -1071,16 +1274,17 @@ class PuckHuman extends Character {
         } else if (this.state === 'PATROL') {
             this.moveTo(this.target.x, this.target.y, speed, () => { this.state = 'WATCHING'; this.timer = 0; });
         } else if (this.state === 'WATCHING') {
-            this.timer++; if(this.timer > 50) this.state = 'IDLE';
+            this.timer += dt; if(this.timer > 50) this.state = 'IDLE';
         }
     }
     draw() { 
-        if(this.x > -100) this.drawBase('#00b894'); 
+        if(this.x > -100) {
+            this.drawBase('#00b894'); 
+            if (this.speech.timer > 0) drawSpeechBubble(ctx, this.speech.text, this.x, this.y - 40);
+        }
     }
 }
 
-
-// --- Factory ---
 const CharacterFactory = {
     create: (role, id) => {
         switch(role) {
@@ -1098,7 +1302,240 @@ const CharacterFactory = {
     }
 };
 
-// --- Initialization ---
+// ==========================================
+// 5. MAIN LOOP & INIT
+// ==========================================
+
+function updateDialogueSystem(dt) {
+    if (state.dialogue.active) {
+        state.dialogue.active.life -= dt;
+        if(state.dialogue.active.life < 20) {
+            state.dialogue.active.alpha = state.dialogue.active.life / 20;
+        } else if (state.dialogue.active.life > 280) {
+            state.dialogue.active.alpha = (300 - state.dialogue.active.life) / 20;
+        } else {
+            state.dialogue.active.alpha = 1;
+        }
+        
+        if (state.dialogue.active.life <= 0) {
+            state.dialogue.active = null;
+            state.dialogue.timer = rand(CONFIG.dialogueInterval.min, CONFIG.dialogueInterval.max);
+        }
+        return;
+    }
+
+    state.dialogue.timer -= dt;
+    if (state.dialogue.timer <= 0) {
+        let availableRoles = [];
+        if (state.isDay) {
+            availableRoles.push('mover', 'worker', 'decorator', 'monitorSup', 'deliverer', 'janitor', 'office', 'puckHuman');
+        }
+        availableRoles.push('ceo'); 
+        if (!state.isDay) {
+            availableRoles.push('puck');
+        }
+
+        let role = availableRoles[Math.floor(Math.random() * availableRoles.length)];
+        let key = '';
+        let targetObj = null; 
+        let fixedX = 0, fixedY = 0;
+
+        if (role === 'ceo') {
+            let ceo = state.chars.filter(c => c.type === 'ceo')[Math.floor(Math.random() * 2)];
+            if(ceo) {
+                key = ceo.id === 0 ? 'oberon' : 'titania';
+                targetObj = ceo;
+            }
+        } else if (role === 'puckHuman') {
+             let ph = state.chars.find(c => c.type === 'puckHuman');
+             if(ph && ph.x > 0) { key = 'puck'; targetObj = ph; }
+        } else if (role === 'puck') {
+             if(state.pucks.length > 0) { key = 'puck'; targetObj = state.pucks[0]; }
+        } else {
+            if(['mover','decorator','monitorSup'].includes(role)) key = 'fairies';
+            else key = 'craftsmen';
+            
+            let candidates = state.chars.filter(c => c.type === role);
+            if(candidates.length > 0) {
+                let c = candidates[Math.floor(Math.random() * candidates.length)];
+                fixedX = c.x + rand(-10, 10);
+                fixedY = c.y - 30 + rand(-5, 5);
+            } else { return; }
+        }
+
+        if (key && DIALOGUES[key]) {
+            let text = DIALOGUES[key][Math.floor(Math.random() * DIALOGUES[key].length)];
+            state.dialogue.active = {
+                text: text,
+                life: 300, 
+                alpha: 0,
+                targetObj: targetObj,
+                x: fixedX,
+                y: fixedY
+            };
+        } else {
+            state.dialogue.timer = 100;
+        }
+    }
+}
+
+function drawDialogueSystem() {
+    if (!state.dialogue.active) return;
+    let d = state.dialogue.active;
+    let x = d.x;
+    let y = d.y;
+    
+    if (d.targetObj) {
+        x = d.targetObj.x;
+        y = d.targetObj.y - 25; 
+    }
+    drawSpeechBubble(ctx, d.text, x, y, d.alpha);
+}
+
+function loop() {
+    try {
+        if (state.phase === 'ENDING') {
+            ctx.clearRect(0,0,canvas.width,canvas.height); drawBG();
+            state.chars.forEach(c => { c.update(1); c.draw(); });
+            requestAnimationFrame(loop); return;
+        }
+        
+        let dt = state.timeScale;
+        state.frame += dt; 
+        state.dayTimer += dt;
+        
+        if (state.dayTimer > CONFIG.dayLength) { 
+            if(state.isDay) { state.isDay = false; state.dayTimer = 0; state.pucks.push(new Puck()); } 
+            else { finishNight(); } 
+        }
+        
+        if(!state.isDay && state.dayTimer > CONFIG.dayLength * 0.66 && state.pucks.length < 3) {
+            if(Math.floor(state.frame) % 60 === 0) { let p = new Puck(); p.x = state.pucks[0].x; p.y = state.pucks[0].y; state.pucks.push(p); createEmote(p.x, p.y, 'CLONE!'); }
+        }
+        if (Math.floor(state.frame) % 1200 === 0) showPuckMessage();
+        updateStats();
+        updateDialogueSystem(dt);
+
+        ctx.clearRect(0,0,canvas.width,canvas.height); drawBG();
+        state.houses.forEach(h=>h.draw());
+        state.pedestrians.forEach(p=> { p.update(dt); p.draw(); });
+        
+        for (let i = state.items.length - 1; i >= 0; i--) {
+            let item = state.items[i];
+            item.update(dt); 
+            item.draw();
+            if(item.stage === 'DELETED') {
+                state.items.splice(i, 1);
+            }
+        }
+
+        state.chars.sort((a,b)=>a.y - b.y); 
+        state.chars.forEach(c=>{c.update(dt); c.draw();}); 
+        if(!state.isDay) state.pucks.forEach(p => { p.update(dt); p.draw(); });
+        
+        for (let i = state.particles.length - 1; i >= 0; i--) {
+            let p = state.particles[i];
+            p.life -= dt;
+            if (p.life <= 0) {
+                state.particles.splice(i, 1);
+            } else {
+                if(p.type==='emote') { p.y+=p.vy * dt; ctx.fillStyle=p.c||'#fff'; ctx.font="bold 20px serif"; ctx.fillText(p.text,p.x,p.y); }
+                else { p.x+=p.vx * dt; p.y+=p.vy * dt; ctx.fillStyle=p.c; ctx.globalAlpha=p.life/30; ctx.fillRect(p.x,p.y,2,2); ctx.globalAlpha=1; }
+            }
+        }
+        
+        drawDialogueSystem();
+        requestAnimationFrame(loop);
+    } catch (e) {
+        console.error("Game Loop Error:", e);
+    }
+}
+
+function startTutorial() {
+    currentTutStep = 0;
+    tutOverlay.classList.remove('tut-hidden');
+    tutOverlay.style.display = 'flex';
+    updateTutorialUI();
+}
+
+function endTutorial() {
+    tutOverlay.style.display = 'none';
+    tutHighlight.style.display = 'none';
+}
+
+function updateTutorialUI() {
+    const step = tutorialSteps[currentTutStep];
+    tutTitle.innerText = step.title;
+    tutText.innerText = step.text;
+    
+    if (step.zone && CONFIG.zones[step.zone]) {
+        const z = CONFIG.zones[step.zone];
+        tutHighlight.style.display = 'block';
+        tutHighlight.style.left = z.x + 'px';
+        tutHighlight.style.top = z.y + 'px';
+        tutHighlight.style.width = z.w + 'px';
+        tutHighlight.style.height = z.h + 'px';
+    } else {
+        tutHighlight.style.display = 'none';
+    }
+
+    if (currentTutStep === tutorialSteps.length - 1) {
+        tutNext.innerText = "Start!";
+    } else {
+        tutNext.innerText = "Next";
+    }
+}
+
+function resetGameToDay(nextLevel) {
+    state.isDay = true;
+    state.dayTimer = 0;
+    state.phase = 'PLAYING';
+    state.level = nextLevel; // Set Level
+    levelBadge.innerText = "LV." + state.level;
+    
+    state.pucks = [];
+    state.items = []; 
+    state.deliveryScores = { nightmare: 0, sweet: 0, neutral: 0 };
+    state.stats = { nightmare: 0, sweet: 0, neutral: 0 };
+    state.caughtNightmares = 0;
+    state.rageMode = false;
+    rageOverlay.style.background = "rgba(255, 0, 0, 0)";
+    state.shelfSlots.fill(null);
+    endingOverlay.style.display = 'none';
+    state.chars.forEach(c => c.reset());
+    state.dominance = 'NEUTRAL';
+    
+    setSpeed(1); // Reset speed to 1x on new day
+}
+
+function finishNight() {
+    let s = state.stats;
+    let winner = 'NEUTRAL';
+    if (s.nightmare > s.sweet && s.nightmare > s.neutral) winner = 'NIGHTMARE';
+    else if (s.sweet > s.nightmare && s.sweet > s.neutral) winner = 'SWEET';
+    state.dominance = winner;
+
+    state.phase = 'ENDING'; endingOverlay.style.display = 'flex';
+    
+    if(state.dominance === 'NIGHTMARE') { 
+        endingOverlay.className = 'end-nightmare'; 
+        endTitle.innerText = "SYSTEM ERROR"; 
+        endDesc.innerText = "Puck corrupted the world. Resetting to Level 1."; 
+        setTimeout(() => { resetGameToDay(1); }, 5000);
+    } 
+    else if (state.dominance === 'SWEET') {
+        endingOverlay.className = 'end-sweet'; 
+        endTitle.innerText = "SWEET DREAMS"; 
+        endDesc.innerText = "Level Complete! Advancing to Level " + (state.level + 1); 
+        setTimeout(() => { resetGameToDay(state.level + 1); }, 5000);
+    }
+    else {
+        endingOverlay.className = 'end-neutral'; 
+        endTitle.innerText = "NEUTRAL NIGHT"; 
+        endDesc.innerText = "Neither side won. Try again at same level.";
+        setTimeout(() => { resetGameToDay(state.level); }, 5000);
+    }
+}
 
 function init() {
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
@@ -1127,19 +1564,17 @@ function init() {
     
     state.houses = [];
     for(let i=0; i<6; i++) state.houses.push({x: 100 + i*180, y: canvas.height-80, w: 100, h: 80, win:{x:0, y:0}});
-    // Init houses win pos
     state.houses.forEach(h => { h.win = {x: h.x+h.w/2-15, y: h.y+30, on:false, timer:0}; 
         h.draw = function() {
             ctx.fillStyle = state.isDay ? '#2c3e50' : '#1a252f'; 
             ctx.fillRect(this.x,this.y,this.w-10,this.h);
             ctx.fillStyle=CONFIG.colors.roof[0]; ctx.beginPath(); ctx.moveTo(this.x,this.y); ctx.lineTo(this.x+this.w/2,this.y-20); ctx.lineTo(this.x+this.w,this.y); ctx.fill();
             
-            if(this.win.timer>0) this.win.timer--; else this.win.on=false;
+            if(this.win.timer>0) this.win.timer -= state.timeScale; else this.win.on=false;
             let winColor = state.isDay ? '#87ceeb' : (this.win.on ? this.win.color : 'rgba(0,0,0,0.3)');
             if (state.isDay) { ctx.fillStyle = winColor; ctx.fillRect(this.win.x,this.win.y,30,30); } 
             else if (this.win.on) {
                  ctx.globalAlpha = 0.6; ctx.fillStyle = winColor; ctx.fillRect(this.win.x,this.win.y,30,30);
-                 // Performance: simplified win highlight
                  ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(this.win.x,this.win.y,30,30);
                  ctx.globalAlpha = 1.0;
             }
@@ -1154,245 +1589,59 @@ function init() {
 
     state.pedestrians = Array.from({length:10}, ()=>new Pedestrian());
     state.stars = Array.from({length:50}, ()=>({x:rand(0,canvas.width), y:rand(0,canvas.height/2), size:rand(0.5,2)}));
+
+    // Pre-spawn items for click testing
+    for(let i=0; i<5; i++) {
+        let item = new Item();
+        item.stage = 'ON_BELT';
+        item.x = CONFIG.zones.belt.x + i * 50;
+        item.y = CONFIG.zones.belt.y + 15;
+        state.items.push(item);
+    }
     
-    // Auto start tutorial on first load
     startTutorial();
 }
 
-// --- Helper Functions ---
-
-function createParticle(x, y, c, size) {
-    if(state.particles.length > 300) return; // Prevent freeze by limiting particles
-    state.particles.push({x:x, y:y, vx:rand(-2,2), vy:rand(-2,2), life:30, c:c, type:'p', size:size});
-}
-
-function createEmote(x, y, text) {
-    if(state.particles.length > 300) return; 
-    state.particles.push({x:x, y:y, vy:-1, life:40, text:text, type:'emote'});
-}
-
-function showPuckMessage() {
-    if(!state.isDay) {
-        const msg = puckMessages[Math.floor(Math.random() * puckMessages.length)];
-        puckText.innerText = "";
-        puckBox.style.display = 'block';
-        let i = 0;
-        const typeInterval = setInterval(() => {
-            if(i < msg.length) {
-                puckText.innerText += msg[i];
-                i++;
-            } else {
-                clearInterval(typeInterval);
-            }
-        }, 50);
-        setTimeout(() => { puckBox.style.display = 'none'; }, 4000);
-    }
-}
-
-function updateStats() {
-    if(state.isDay) {
-        document.body.style.backgroundColor = CONFIG.colors.dayBG;
-        titleElem.className = 'title-day';
-        nightDisclaimer.style.display = 'none';
-    } else {
-        document.body.style.backgroundColor = CONFIG.colors.nightBG;
-        titleElem.className = 'title-night';
-        nightDisclaimer.style.display = 'block';
-    }
-    
-    // Move Time Marker
-    let progress = state.dayTimer / CONFIG.dayLength;
-    timeMarker.style.left = `${progress * 100}%`;
-    timeMarker.innerText = state.isDay ? '🌞' : '🌙';
-
-    // Calculate Dynamic Scores for UI
-    // Delivery Score + (Current On-screen Items * 10)
-    let currentSweet = 0, currentNightmare = 0, currentNeutral = 0;
-    
-    for(const item of state.items) {
-        if(item.stage === 'DELETED') continue;
-        if(item.qualityType === 1) currentNightmare++;
-        else if(item.qualityType === 2) currentSweet++;
-        else currentNeutral++;
-    }
-
-    let finalSweet = state.deliveryScores.sweet + (currentSweet * CONFIG.activeItemScore);
-    let finalNightmare = state.deliveryScores.nightmare + (currentNightmare * CONFIG.activeItemScore);
-    let finalNeutral = state.deliveryScores.neutral + (currentNeutral * CONFIG.activeItemScore);
-
-    // Update Score Board UI
-    scoreElSweet.innerText = finalSweet;
-    scoreElNightmare.innerText = finalNightmare;
-    scoreElNeutral.innerText = finalNeutral;
-    
-    // Store current totals for ending logic comparison (snapshot)
-    state.stats.sweet = finalSweet;
-    state.stats.nightmare = finalNightmare;
-    state.stats.neutral = finalNeutral;
-}
-
-function drawBG() {
-    // Draw Zones
-    ctx.fillStyle = '#dfe6e9'; // Floor for factory
-    // Draw connections
-    ctx.strokeStyle = '#b2bec3'; ctx.lineWidth = 10;
-    ctx.beginPath(); 
-    ctx.moveTo(CONFIG.zones.raw.x+50, CONFIG.zones.raw.y); 
-    ctx.lineTo(CONFIG.zones.funnel.x, CONFIG.zones.funnel.y+30);
-    ctx.stroke();
-
-    // Draw Zones
-    for(let key in CONFIG.zones) {
-        let z = CONFIG.zones[key];
-        let zx = z.x | 0; let zy = z.y | 0; let zw = z.w | 0; let zh = z.h | 0;
-        if(key === 'belt') {
-             ctx.fillStyle = CONFIG.colors.belt;
-             ctx.fillRect(zx, zy, zw, zh);
-             // Belt animation
-             ctx.fillStyle = '#7f8c8d';
-             let off = (state.frame*CONFIG.speed.belt) | 0;
-             for(let i=0; i<zw; i+=20) {
-                 ctx.fillRect(zx + (i + off)%zw, zy, 2, zh);
-             }
-        } else if (key === 'finish') {
-            ctx.fillStyle = '#b2bec3'; ctx.fillRect(zx, zy, zw, zh);
-            // Shelves
-            ctx.fillStyle = '#636e72';
-            for(let i=0; i<5; i++) {
-                ctx.fillRect(zx, zy + 15 + i*28, zw, 2);
-            }
-        } else {
-            ctx.fillStyle = '#dfe6e9';
-            ctx.fillRect(zx, zy, zw, zh);
-            ctx.strokeStyle = '#bdc3c7'; ctx.strokeRect(zx, zy, zw, zh);
-        }
-        
-        // Label
-        ctx.fillStyle = '#aaa'; ctx.font = '10px sans-serif';
-        ctx.fillText(key, zx, zy - 5);
-    }
-    
-    // Stars Optimized
-    if(!state.isDay) {
-        ctx.fillStyle = '#fff';
-        state.stars.forEach(s => {
-            // Simplified twinkling: size modulation instead of alpha
-            let twinkle = Math.sin(state.frame * 0.1 + s.x) * 0.5 + 1; 
-            ctx.beginPath(); ctx.arc(s.x, s.y, s.size * twinkle, 0, Math.PI*2); ctx.fill();
-        });
-    }
-}
-
-function resetGameToDay() {
-    state.isDay = true;
-    state.dayTimer = 0;
-    state.phase = 'PLAYING';
-    state.pucks = [];
-    state.items = []; 
-    // Reset Scores for new day
-    state.deliveryScores = { nightmare: 0, sweet: 0, neutral: 0 };
-    state.stats = { nightmare: 0, sweet: 0, neutral: 0 };
-    state.shelfSlots.fill(null);
-    endingOverlay.style.display = 'none';
-    state.chars.forEach(c => c.reset());
-    state.dominance = 'NEUTRAL';
-}
-
-canvas.addEventListener('mousedown', (e) => {
-    let rect = canvas.getBoundingClientRect();
-    let mx = e.clientX - rect.left;
-    let my = e.clientY - rect.top;
-    
-    const clickRadSq = 50 * 50; // Increased click radius to 50px (2500)
-    if(!state.isDay) {
-        state.pucks.forEach(p => { if(distSq(mx, my, p.x, p.y) < clickRadSq) p.hit(); });
-    }
-    state.items.forEach(i => { if(distSq(mx, my, i.x, i.y) < clickRadSq) i.toggleQuality(); });
+// Global Event Listeners (Safe Zone)
+tutNext.addEventListener('click', () => {
+    currentTutStep++;
+    if (currentTutStep >= tutorialSteps.length) { endTutorial(); } else { updateTutorialUI(); }
 });
+tutSkip.addEventListener('click', endTutorial);
+helpBtn.addEventListener('click', startTutorial);
 
-// --- Main Loop ---
+// [FIX] Mouse Interactions with DELIVERING support
+canvas.addEventListener('mousedown', (e) => {
+    if (tutOverlay.style.display !== 'none' || state.phase === 'ENDING') return;
 
-function finishNight() {
-    // Check Scores
-    let s = state.stats; // Use the calculated totals from updateStats
-    let winner = 'NEUTRAL';
-    
-    if (s.nightmare > s.sweet && s.nightmare > s.neutral) winner = 'NIGHTMARE';
-    else if (s.sweet > s.nightmare && s.sweet > s.neutral) winner = 'SWEET';
-    
-    state.dominance = winner;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
 
-    if(state.dominance === 'NEUTRAL') { resetGameToDay(); } 
-    else {
-        state.phase = 'ENDING'; endingOverlay.style.display = 'flex';
-        if(state.dominance === 'NIGHTMARE') { 
-            endingOverlay.className = 'end-nightmare'; 
-            endTitle.innerText = "SYSTEM ERROR"; 
-            endDesc.innerText = "Puck has corrupted the world. Nightmares are everywhere."; 
-        } 
-        else { 
-            endingOverlay.className = 'end-sweet'; 
-            endTitle.innerText = "SWEET DREAMS"; 
-            endDesc.innerText = "Titania protected the dreams. Have a wonderful night!"; 
-        }
-        setTimeout(() => { resetGameToDay(); }, 5000);
-    }
-}
-
-function loop() {
-    try {
-        if (state.phase === 'ENDING') {
-            ctx.clearRect(0,0,canvas.width,canvas.height); drawBG();
-            state.chars.forEach(c => { c.update(); c.draw(); });
-            requestAnimationFrame(loop); return;
-        }
-        state.frame++; state.dayTimer++;
-        if (state.dayTimer > CONFIG.dayLength) { 
-            if(state.isDay) { state.isDay = false; state.dayTimer = 0; state.pucks.push(new Puck()); } 
-            else { finishNight(); } 
-        }
-        
-        // Logic continues...
-        if(!state.isDay && state.dayTimer > CONFIG.dayLength * 0.66 && state.pucks.length < 3) {
-            if(state.frame % 60 === 0) { let p = new Puck(); p.x = state.pucks[0].x; p.y = state.pucks[0].y; state.pucks.push(p); createEmote(p.x, p.y, 'CLONE!'); }
-        }
-        if (state.frame % 1200 === 0) showPuckMessage();
-        updateStats();
-        ctx.clearRect(0,0,canvas.width,canvas.height); drawBG();
-        state.houses.forEach(h=>h.draw());
-        state.pedestrians.forEach(p=> { p.update(); p.draw(); });
-        
-        // Optimized: Filter out deleted items backwards
-        for (let i = state.items.length - 1; i >= 0; i--) {
-            let item = state.items[i];
-            item.update(); 
-            item.draw();
-            if(item.stage === 'DELETED') {
-                state.items.splice(i, 1);
+    if (!state.isDay) {
+        for (let p of state.pucks) {
+            if (p.stunTimer <= 0 && distSq(mx, my, p.x, p.y) < 2500) {
+                p.hit(); 
+                return; // 퍽을 클릭했으면 아이템 클릭은 패스 (퍽 잡기가 우선)
             }
         }
+    }
 
-        state.chars.sort((a,b)=>a.y - b.y); 
-        state.chars.forEach(c=>{c.update(1.0); c.draw();}); 
-        if(!state.isDay) state.pucks.forEach(p => { p.update(); p.draw(); });
-        
-        // Optimized: Particle Loop
-        for (let i = state.particles.length - 1; i >= 0; i--) {
-            let p = state.particles[i];
-            p.life--;
-            if (p.life <= 0) {
-                state.particles.splice(i, 1);
-            } else {
-                if(p.type==='emote') { p.y+=p.vy; ctx.fillStyle=p.c||'#fff'; ctx.font="bold 20px serif"; ctx.fillText(p.text,p.x,p.y); }
-                else { p.x+=p.vx; p.y+=p.vy; ctx.fillStyle=p.c; ctx.globalAlpha=p.life/30; ctx.fillRect(p.x,p.y,2,2); ctx.globalAlpha=1; }
+    // 2. 아이템 클릭 (꿈 <-> 악몽 변환)
+    // [MODIFIED] 겹쳐진 아이템도 모두 클릭되도록 break 제거
+    for (let item of state.items) {
+        if (['RAW', 'FLYING_TO_FACTORY', 'ON_BELT', 'PENDING_DECO', 'PACKED', 'WAITING_MONITOR', 'MONITORING', 'AUTO_MOVE_TO_SHELF', 'ON_SHELF', 'DELIVERING'].includes(item.stage)) {
+            // [MODIFIED] 클릭 범위 재조정: 1225(35px) -> 400(20px)
+            // 설명: 꿈의 최대 시각적 반경은 약 16px(기본 10px + 아우라 6px)입니다.
+            // 요청하신 1.1배(약 17.6px)를 고려하여 클릭 편의상 20px(제곱 400)로 설정했습니다.
+            if (distSq(mx, my, item.x, item.y) < 400) {
+                item.toggleQuality(); 
+                createParticle(item.x, item.y, '#ffffff', 8); 
+                // break; // 유지 (겹친 아이템 모두 클릭)
             }
         }
-        
-        requestAnimationFrame(loop);
-    } catch (e) {
-        console.error("Game Loop Error:", e);
     }
-}
+});
 
 window.addEventListener('resize',init);
 init();
