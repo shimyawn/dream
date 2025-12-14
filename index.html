@@ -252,7 +252,6 @@ const rand = (min, max) => Math.random() * (max - min) + min;
 const distSq = (x1, y1, x2, y2) => (x2-x1)**2 + (y2-y1)**2; 
 const dist = (x1, y1, x2, y2) => Math.sqrt(distSq(x1, y1, x2, y2));
 
-// [MODIFIED] Base speed reduced by half for "1X is slower" request
 const CONFIG = {
     dayLength: 2000, 
     charSize: 16,
@@ -334,7 +333,7 @@ let state = {
     stats: { nightmare: 0, sweet: 0, neutral: 0 }, dominance: 'NEUTRAL',
     deliveryScores: { nightmare: 0, sweet: 0, neutral: 0 },
     caughtNightmares: 0, rageMode: false,
-    level: 1, timeScale: 1, // [MODIFIED] Added level and timeScale
+    level: 1, timeScale: 1, 
     items: [], chars: [], houses: [], particles: [], pedestrians: [], dusts: [], stars: [], pucks: [], 
     shelfSlots: new Array(CONFIG.shelfCapacity).fill(null),
     monitor: { activeItem: null, timer: 0 },
@@ -1064,7 +1063,11 @@ class Deliverer extends Character {
         this.y = rand(100, 300);
     }
     reset() {
-        super.reset(); this.x = -1000;
+        super.reset(); 
+        // [FIX] 배달요정 위치 초기화 수정: 왼쪽 끝(-1000)이 아니라 오른쪽 대기 장소로 이동
+        // 이렇게 해야 낮 동안 불필요한 이동을 하지 않고, 밤이 되면 바로 배달에 투입됩니다.
+        this.x = canvas.width + 100 + rand(0, 100);
+        this.y = rand(100, 300);
     }
     runAI(dt) {
         if (state.isDay) {
@@ -1409,8 +1412,19 @@ function loop() {
             else { finishNight(); } 
         }
         
-        if(!state.isDay && state.dayTimer > CONFIG.dayLength * 0.66 && state.pucks.length < 3) {
-            if(Math.floor(state.frame) % 60 === 0) { let p = new Puck(); p.x = state.pucks[0].x; p.y = state.pucks[0].y; state.pucks.push(p); createEmote(p.x, p.y, 'CLONE!'); }
+        // [FIX] Puck Spawn Logic Adjusted for Levels
+        // Level 1: Max 1 puck (no clones)
+        // Level 2+: Max = Level count (capped at 6)
+        let maxPucks = state.level; 
+        if (maxPucks > 6) maxPucks = 6;
+        
+        if(!state.isDay && state.dayTimer > CONFIG.dayLength * 0.3 && state.pucks.length < maxPucks) {
+            if(Math.floor(state.frame) % 180 === 0) { 
+                let p = new Puck(); 
+                p.x = state.pucks[0].x; p.y = state.pucks[0].y; 
+                state.pucks.push(p); 
+                createEmote(p.x, p.y, 'CLONE!'); 
+            }
         }
         if (Math.floor(state.frame) % 1200 === 0) showPuckMessage();
         updateStats();
